@@ -44,7 +44,7 @@ if "--output-format" in args and args[args.index("--output-format") + 1] == "str
     ev = [
       {"type": "system", "subtype": "init", "session_id": "sess-orch-1"},
       {"type": "assistant", "message": {"content": [{"type": "text", "text": "Let me ask Codex."}]}},
-      {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "tu1", "name": "mcp__harness__delegate", "input": {"to": "codex", "prompt": "review this", "class": "readonly"}}]}},
+      {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "tu1", "name": "mcp__harness__delegate", "input": {"to": "codex", "prompt": "review this", "class": "readonly", "label": "  Reviewer "}}]}},
       {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "tu1", "content": [{"type": "text", "text": json.dumps(receipt)}]}]}},
       {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "tu2", "name": "Bash", "input": {"command": "ls"}}]}},
       {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "tu2", "content": "file.txt"}]}},
@@ -148,6 +148,9 @@ class Api(unittest.TestCase):
         self.assertIn(("worker:codex", "orchestrator", "receipt"), kinds)
         receipt = [m for m in s["messages"] if m["kind"] == "receipt"][-1]
         self.assertEqual(receipt["meta"]["root_code"], "ok"); self.assertEqual(receipt["meta"]["delegation_id"], "dlg_stub1")
+        tool_use = [m for m in s["messages"] if m["kind"] == "tool_use" and m["to"] == "worker:codex"][-1]
+        self.assertEqual(tool_use["meta"].get("label"), "Reviewer")  # additive contract field, trimmed
+        self.assertEqual(tool_use["meta"]["class"], "readonly")
         self.assertEqual(s["orchestrator"]["session_ref"], {"kind": "claude_session", "id": "sess-orch-1"})
         names = {a["id"]: a for a in s["agents"]}
         self.assertIn("worker:codex", names)
@@ -182,8 +185,24 @@ class Api(unittest.TestCase):
         st, e = call("GET", "/api/stats?minutes=abc")
         self.assertEqual(st, 400)
 
+    def test_index_static_checks(self):
+        """The page is one dependency-free file: no markup-string DOM building, only the contract endpoints, no external assets."""
+        import re
+        src = (REPO / "harness_ui" / "index.html").read_text(encoding="utf-8")
+        script = re.search(r"<script>(.*?)</script>", src, re.S).group(1)
+        for banned in ("innerHTML", "insertAdjacentHTML", "outerHTML", "document.write", "eval("):
+            self.assertNotIn(banned, script, banned)
+        self.assertEqual(set(re.findall(r"https?://[^\"' )]+", src)), {"http://www.w3.org/2000/svg"})
+        endpoints = set(re.findall(r"'(/api/[a-z]+)", script))
+        self.assertEqual(endpoints, {"/api/state", "/api/stats", "/api/orchestrator", "/api/say", "/api/delegate", "/api/playbooks", "/api/teams", "/api/turn", "/api/receipt", "/api/turns", "/api/events"})
+        self.assertIn('name="viewport"', src)
+        self.assertIn("@media (max-width:859px)", src)
+        self.assertIn("prefers-reduced-motion", src)
+        self.assertNotIn("<link", src)  # no stylesheets or fonts from anywhere
+        self.assertEqual(src.count("<script"), 1)
+
     def test_direct_delegation_records_both_hops(self):
-        st, r = call("POST", "/api/delegate", {"to": "claude", "prompt": "hello direct", "class": "readonly"})
+        st, r = call("POST", "/api/delegate", {"to": "claude", "prompt": "hello direct", "class": "readonly", "label": "Checker"})
         self.assertEqual(st, 202, r)
         deadline = time.time() + 15
         while time.time() < deadline:
@@ -195,8 +214,126 @@ class Api(unittest.TestCase):
         self.assertTrue(recs, "no direct receipt recorded")
         self.assertEqual(recs[-1]["from"], "worker:claude")
         self.assertEqual(recs[-1]["meta"]["root_code"], "ok")
+        direct = [m for m in s["messages"] if m["kind"] == "tool_use" and m["from"] == "user" and m["to"] == "worker:claude"][-1]
+        self.assertTrue(direct["meta"].get("direct"))
+        self.assertEqual(direct["meta"].get("label"), "Checker")
         st, e = call("POST", "/api/delegate", {"to": "claude"})
         self.assertEqual(st, 400)
+
+
+class V2Api(unittest.TestCase):
+    def setUp(self):
+        call("POST", "/api/orchestrator", {"vendor": "claude", "model": "sonnet", "effort": "high", "playbook": "wisdom", "team": {"mode": "suggest", "roles": []}, "reset": True})
+
+    def tearDown(self):
+        call("POST", "/api/orchestrator", {"playbook": "wisdom", "team": {"mode": "suggest", "roles": []}, "reset": True})
+
+    def test_playbook_and_team_reach_turn_and_worker(self):
+        from harness import delegate as dg
+        st, p = call("POST", "/api/playbooks", {"name": "UI review", "content": "# Review protocol\nAlways cite evidence.", "replace": True})
+        self.assertEqual(st, 201, p)
+        team = {"mode": "strict", "roles": [{"label": "Reviewer", "to": "claude", "model": "sonnet", "effort": "high", "class": "readonly", "brief": "Review the proof."}]}
+        st, cfg = call("POST", "/api/orchestrator", {"playbook": p["slug"], "team": team})
+        self.assertEqual(st, 200, cfg)
+        st, turn = call("POST", "/api/say", {"text": "Review now"})
+        self.assertEqual(st, 202, turn)
+        self.assertEqual(wait_turn(turn["turn_id"])["status"], "done")
+        argv = json.loads(STUB_LOG.read_text().splitlines()[-1])["argv"]
+        instructions = argv[argv.index("--append-system-prompt") + 1]
+        self.assertIn("Always cite evidence.", instructions)
+        self.assertIn("## Your team", instructions)
+        rec = dg.delegate({"label": "Reviewer", "prompt": "Review now"})
+        self.assertEqual(rec["root_code"], "ok", rec)
+        self.assertEqual(rec["provenance"]["sha256"], p["sha256"])
+        self.assertEqual(rec["model"], "sonnet")
+        argv = json.loads(STUB_LOG.read_text().splitlines()[-1])["argv"]
+        self.assertIn(p["sha256"], argv[argv.index("--append-system-prompt") + 1])
+        self.assertEqual(call("DELETE", "/api/playbooks/" + p["slug"])[0], 409)
+        self.assertEqual(call("POST", "/api/orchestrator", {"team": {"mode": "suggest", "roles": [{"label": "bad", "to": "local"}]}})[0], 400)
+        self.assertEqual(call("DELETE", "/api/teams/solo")[0], 405)
+        self.assertEqual(call("POST", "/api/playbooks", {"name": "secret", "content": "api_key=" + "x" * 32})[0], 400)
+        st, saved = call("POST", "/api/teams", {"name": "UI custom team", "team": team})
+        self.assertEqual(st, 201)
+        self.assertEqual(call("DELETE", "/api/teams/" + saved["slug"])[0], 204)
+
+    def test_stop_kills_vendor_and_child_and_persists_history(self):
+        from unittest.mock import patch
+        stub = TMP / "bin" / "slow-tree"
+        pids = TMP / "tree-pids"
+        stub.write_text("#!/usr/bin/env python3\nimport subprocess,time,os,signal\nsignal.signal(signal.SIGTERM,signal.SIG_IGN)\np=subprocess.Popen(['sleep','30'])\nopen(" + repr(str(pids)) + ", 'w').write(str(os.getpid())+' '+str(p.pid))\ntime.sleep(30)\n")
+        stub.chmod(0o700)
+        with patch.dict(os.environ, {"HARNESS_CLAUDE_BIN": str(stub)}):
+            st, turn = call("POST", "/api/say", {"text": "Stop tree"})
+            self.assertEqual(st, 202)
+            deadline = time.monotonic() + 5
+            while not pids.exists() and time.monotonic() < deadline:
+                time.sleep(.02)
+            self.assertTrue(pids.exists())
+            began = time.monotonic()
+            self.assertEqual(call("POST", f"/api/turn/{turn['turn_id']}/stop", {})[0], 202)
+            done = wait_turn(turn["turn_id"], 2)
+            self.assertLess(time.monotonic() - began, 2)
+            self.assertEqual(done["status"], "stopped", done)
+            self.assertEqual(done["error"], "HARNESS_TURN_STOPPED")
+            for pid in pids.read_text().split():
+                status = Path('/proc') / pid / 'stat'
+                self.assertTrue(not status.exists() or status.read_text().split()[2] == 'Z', 'live orphan ' + pid)
+            self.assertEqual(call("POST", f"/api/turn/{turn['turn_id']}/stop", {})[0], 409)
+            self.assertTrue(any(t["turn_id"] == turn["turn_id"] for t in call("GET", "/api/turns")[1]["turns"]))
+            self.assertEqual(orch.TurnRegistry().get(turn["turn_id"])["status"], "stopped")
+
+    def test_sse_direct_message_and_resume_receipt(self):
+        c = http.client.HTTPConnection("127.0.0.1", PORT, timeout=3)
+        c.request("GET", "/api/events")
+        response = c.getresponse()
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.getheader("Content-Type"), "text/event-stream")
+        began = time.monotonic()
+        st, started = call("POST", "/api/delegate", {"to": "claude", "prompt": "SSE direct"})
+        self.assertEqual(st, 202)
+        found = False
+        while time.monotonic() - began < 2:
+            line = response.readline()
+            if b'SSE direct' in line:
+                found = True; break
+        self.assertTrue(found)
+        self.assertLess(time.monotonic() - began, .5)
+        response.close(); c.close()
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            st, rec = call("GET", "/api/receipt/" + started["id"])
+            if st == 200: break
+            time.sleep(.05)
+        self.assertEqual(st, 200)
+        self.assertEqual(call("GET", "/api/receipt/..%2f..%2fconfig")[0], 404)
+        st, resumed = call("POST", "/api/delegate/" + started["id"] + "/resume", {"prompt": "Continue"})
+        self.assertEqual(st, 202, resumed)
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            st, rec = call("GET", "/api/receipt/" + resumed["id"])
+            if st == 200: break
+            time.sleep(.05)
+        self.assertEqual(rec["resumed_from"], started["id"])
+
+    def test_token_csp_origin_and_no_cached_api(self):
+        from unittest.mock import patch
+        with patch.dict(os.environ, {"HARNESS_UI_TOKEN": "test-access-value"}):
+            self.assertEqual(call("GET", "/api/state")[0], 401)
+            self.assertEqual(call("POST", "/api/say", {"text": "hello"})[0], 401)
+            c = http.client.HTTPConnection("127.0.0.1", PORT, timeout=3)
+            c.request("GET", "/api/state", headers={"Authorization": "Bearer test-access-value"})
+            r = c.getresponse(); self.assertEqual(r.status, 200); r.read()
+            c.request("GET", "/"); r = c.getresponse(); body = r.read().decode(); csp = r.getheader("Content-Security-Policy")
+            import re
+            nonce = re.search(r'<script nonce="([^"]+)"', body)[1]
+            self.assertIn("'nonce-" + nonce + "'", csp)
+            self.assertIn('data-token-required="true"', body)
+            self.assertNotIn("test-access-value", body)
+            c.request("POST", "/api/say", body='{}', headers={"Content-Type":"application/json", "Authorization":"Bearer test-access-value", "Origin":"https://evil.example"})
+            r = c.getresponse(); self.assertEqual(r.status, 403); r.read(); c.close()
+        self.assertEqual(call("GET", "/manifest.webmanifest")[0], 200)
+        st, sw = call("GET", "/sw.js")
+        self.assertNotIn(b"caches", sw)
 
 
 if __name__ == "__main__":
