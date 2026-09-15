@@ -1,0 +1,16 @@
+[Unit]
+Description=agent-harness web UI (loopback http://127.0.0.1:7788; separate repo agent-harness-ui)
+Documentation=file://@UI_REPO@/README.md
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Environment=PATH=@HOME@/.local/share/mise/shims:@HOME@/.local/bin:/usr/local/bin:/usr/bin
+WorkingDirectory=@HOME@/GitHub/Projects
+ExecStart=@UI_REPO@/bin/harness-ui serve --port 7788
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

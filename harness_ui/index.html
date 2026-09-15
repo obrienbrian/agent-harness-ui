@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!--
+  agent-harness UI — contract v1 (see docs/UI-CONTRACT.md)
+  Endpoints used:
+    GET  /api/state              poll every 2s while busy/changed, else 8s
+    GET  /api/stats?minutes=60   poll every 15s
+    POST /api/orchestrator       {vendor?,model?,effort?,name?,reset?}
+    POST /api/say                {text}            -> 409 {"error":"busy"}
+    POST /api/delegate           {to,prompt,class,model?}
+  Single static file: no external assets, no CDNs, no build step.
+  Vanilla JS + inline SVG only. Works offline from 127.0.0.1.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Harness</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #1e1f22;
+    --bg-panel: #2b2d31;
+    --bg-elevated: #313338;
+    --bg-input: #1e1f22;
+    --text: #dbdee1;
+    --text-bright: #f2f3f5;
+    --text-muted: #9aa1ab;
+    --accent: #5865f2;
+    --accent-hover: #4752c4;
+    --ok: #3ddc82;
+    --bad: #ff6b6e;
+    --warn: #f0b232;
+    --border: #3f4147;
+    --focus: #00b0f4;
+  }
+  * , *::before, *::after { box-sizing: border-box; }
+  html, body { overflow-x: hidden; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  h2, h3 { margin: 0 0 8px; color: var(--text-bright); font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
+  ul { margin: 0; padding: 0; list-style: none; }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  #topbar { display: flex; align-items: center; gap: 12px; padding: 8px 14px; background: var(--bg-elevated); border-bottom: 1px solid var(--border); }
+  #topbar strong { color: var(--text-bright); }
+  #as-of { color: var(--text-muted); font-size: 12px; margin-left: auto; }
+  #banner { background: var(--bad); color: #fff; padding: 8px 14px; font-weight: 600; }
+  #banner[hidden] { display: none; }
+
+  .layout {
+    display: grid; gap: 12px; padding: 12px; height: calc(100vh - 40px);
+    grid-template-columns: 250px minmax(0, 1fr) 300px;
+    grid-template-rows: auto 1fr auto auto;
+    grid-template-areas: "roster orch traffic" "roster feed traffic" "roster composer traffic" "roster delegate traffic";
+  }
+  .panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px; min-height: 0; overflow-y: auto; }
+  #roster-panel { grid-area: roster; }
+  #orch-card { grid-area: orch; overflow: visible; }
+  #feed-panel { grid-area: feed; display: flex; flex-direction: column; }
+  #composer-panel { grid-area: composer; overflow: visible; }
+  #delegate-panel { grid-area: delegate; overflow: visible; }
+  #traffic-panel { grid-area: traffic; }
+
+  @media (max-width: 700px) {
+    .layout {
+      grid-template-columns: 1fr; height: auto;
+      grid-template-rows: auto auto auto auto auto auto;
+      grid-template-areas: "feed" "orch" "composer" "delegate" "roster" "traffic";
+    }
+    .panel { max-height: none; }
+    #feed-panel { height: 60vh; }
+  }
+
+  /* roster */
+  .roster-row { display: flex; align-items: center; gap: 8px; padding: 6px 2px; border-bottom: 1px solid var(--border); }
+  .roster-row:last-child { border-bottom: none; }
+  .roster-info { min-width: 0; flex: 1; }
+  .roster-name { font-weight: 600; color: var(--text-bright); overflow-wrap: anywhere; }
+  .roster-sub { font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+  .roster-status { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .roster-count { font-size: 12px; color: var(--text-muted); min-width: 1.5em; text-align: right; }
+
+  .avatar { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 14px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .dot-idle { background: var(--ok); }
+  .dot-busy { background: var(--warn); }
+  .dot-error { background: var(--bad); }
+
+  /* orchestrator card */
+  .orch-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; align-items: end; }
+  .orch-row label { display: flex; flex-direction: column; font-size: 11px; color: var(--text-muted); gap: 2px; }
+  .orch-row input, .orch-row select { background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; color: var(--text-bright); min-width: 110px; }
+  .btn { background: var(--accent); border: none; border-radius: 6px; color: #fff; padding: 7px 12px; font-weight: 600; cursor: pointer; }
+  .btn:hover { background: var(--accent-hover); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-secondary { background: var(--bg-elevated); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: #3a3d44; }
+  .orch-status { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-muted); align-items: center; }
+  .orch-status strong { color: var(--text-bright); }
+  .hint { font-size: 11px; color: var(--text-muted); margin: 4px 0 0; }
+
+  /* feed */
+  .feed-list { flex: 1; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 4px 2px; }
+  .msg { display: flex; gap: 10px; align-items: flex-start; }
+  .msg-main { min-width: 0; flex: 1; }
+  .msg-header { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .msg-name { font-weight: 700; color: var(--text-bright); }
+  .ts { font-size: 11px; color: var(--text-muted); }
+  .msg-text { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 2px; }
+  .msg-text.clamp {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 12; line-clamp: 12;
+    overflow: hidden;
+  }
+  .show-more-btn {
+    background: none; border: none; color: var(--accent); cursor: pointer; padding: 2px 0;
+    font-size: 12px; text-decoration: underline;
+  }
+  .badge { border-radius: 10px; padding: 1px 8px; font-size: 11px; font-weight: 700; }
+  .badge-ok { background: rgba(61,220,130,.18); color: var(--ok); }
+  .badge-bad { background: rgba(255,107,110,.18); color: var(--bad); }
+  .tag { border: 1px solid var(--border); border-radius: 4px; padding: 0 5px; font-size: 10px; color: var(--text-muted); }
+  .msg-error .msg-text { color: var(--bad); }
+  .msg-arrow { border-left: 2px solid var(--accent); margin-left: 46px; padding-left: 10px; }
+  .msg-arrow .msg-text { color: var(--text-muted); font-style: italic; }
+
+  /* composer */
+  .composer-form { display: flex; gap: 8px; }
+  .composer-form textarea { flex: 1; resize: vertical; min-height: 2.6em; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 8px; color: var(--text-bright); }
+  .composer-form textarea:disabled { opacity: .6; }
+
+  /* delegate form */
+  .delegate-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+  .delegate-form label { display: flex; flex-direction: column; font-size: 11px; color: var(--text-muted); gap: 2px; }
+  .delegate-form input, .delegate-form select, .delegate-form textarea { background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; color: var(--text-bright); }
+  .delegate-form textarea { min-width: 200px; flex: 1; resize: vertical; }
+  .optional { text-transform: none; font-weight: normal; }
+
+  /* traffic */
+  .traffic-block { margin-bottom: 14px; }
+  .traffic-block svg { width: 100%; height: auto; display: block; }
+  .node-initial { fill: #fff; font-weight: 700; font-size: 13px; }
+  .node-name { fill: var(--text-muted); font-size: 9px; }
+  .axis-label { fill: var(--text-muted); font-size: 9px; }
+  .axis-line { stroke: #4a4d55; stroke-width: 1; }
+  .ng-edge { stroke: #5b5f6b; opacity: .85; }
+  .no-data-label { fill: var(--text-muted); font-size: 12px; font-style: italic; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 6px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); }
+  .legend-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
+  .harness-box { display: flex; flex-direction: column; gap: 8px; font-size: 12px; }
+  .harness-row strong { display: block; color: var(--text-muted); font-weight: 600; margin-bottom: 2px; }
+  .harness-row li { padding: 1px 0; overflow-wrap: anywhere; }
+  .harness-row li.muted { color: var(--text-muted); font-style: italic; }
+
+  /* toasts */
+  #toast-container { position: fixed; right: 14px; bottom: 14px; display: flex; flex-direction: column; gap: 8px; z-index: 100; }
+  .toast { background: var(--bg-elevated); border: 1px solid var(--border); border-left: 3px solid var(--accent); color: var(--text-bright); padding: 8px 12px; border-radius: 6px; font-size: 13px; max-width: 320px; box-shadow: 0 4px 14px rgba(0,0,0,.4); opacity: 1; transition: opacity .3s; }
+  .toast-error { border-left-color: var(--bad); }
+  .toast-out { opacity: 0; }
+</style>
+</head>
+<body>
+<noscript>This tool requires JavaScript.</noscript>
+<header id="topbar">
+  <strong>Agent Harness</strong>
+  <span id="as-of">as of —</span>
+</header>
+<div id="banner" role="alert" hidden></div>
+
+<div class="layout">
+  <aside id="roster-panel" class="panel" aria-label="Agent roster">
+    <h2>Agents</h2>
+    <div id="roster-list"></div>
+  </aside>
+
+  <section id="orch-card" class="panel" aria-label="Orchestrator settings">
+    <h2>Orchestrator</h2>
+    <div class="orch-row">
+      <label>Vendor
+        <select id="vendor-select" aria-label="Vendor">
+          <option value="claude">claude</option>
+          <option value="codex">codex</option>
+        </select>
+      </label>
+      <label>Model
+        <select id="model-select" aria-label="Model"><option>Loading…</option></select>
+      </label>
+      <label>Effort
+        <select id="effort-select" aria-label="Effort"><option>Loading…</option></select>
+      </label>
+      <label>Name
+        <input id="name-input" type="text" aria-label="Orchestrator name" placeholder="Orchestrator">
+      </label>
+      <button id="apply-btn" type="button" class="btn">Apply</button>
+      <button id="new-session-btn" type="button" class="btn btn-secondary">New session</button>
+    </div>
+    <p class="hint">Model and effort take effect on the next turn.</p>
+    <div class="orch-status">
+      <span>Session: <strong id="session-id">—</strong></span>
+      <span>Turns: <strong id="turns-count">0</strong></span>
+      <span><span id="busy-dot" class="dot dot-idle"></span> <strong id="busy-text">idle</strong></span>
+    </div>
+  </section>
+
+  <section id="feed-panel" class="panel" aria-label="Message feed">
+    <div id="feed-list" class="feed-list" aria-live="polite" aria-relevant="additions"></div>
+  </section>
+
+  <section id="composer-panel" class="panel" aria-label="Composer">
+    <form id="composer-form" class="composer-form">
+      <textarea id="composer-input" rows="2" aria-label="Message the orchestrator"
+        placeholder="Message the orchestrator… (Enter to send, Shift+Enter for newline)"></textarea>
+      <button id="send-btn" type="submit" class="btn">Send</button>
+    </form>
+  </section>
+
+  <section id="delegate-panel" class="panel" aria-label="Direct delegate">
+    <h2>Direct delegate</h2>
+    <form id="delegate-form" class="delegate-form">
+      <label>To
+        <input id="delegate-to" list="delegate-to-list" autocomplete="off" placeholder="codex" required>
+      </label>
+      <datalist id="delegate-to-list">
+        <option value="claude"></option>
+        <option value="codex"></option>
+        <option value="local"></option>
+        <option value="codex-local"></option>
+      </datalist>
+      <label>Class
+        <select id="delegate-class" aria-label="Task class">
+          <option value="readonly">readonly</option>
+          <option value="edit">edit</option>
+        </select>
+      </label>
+      <label>Model <span class="optional">(optional)</span>
+        <input id="delegate-model" placeholder="model override">
+      </label>
+      <label>Prompt
+        <textarea id="delegate-prompt" rows="2" required></textarea>
+      </label>
+      <button id="delegate-submit" type="submit" class="btn">Delegate</button>
+    </form>
+  </section>
+
+  <aside id="traffic-panel" class="panel" aria-label="Traffic">
+    <h2>Traffic</h2>
+    <div class="traffic-block">
+      <h3>Agent graph</h3>
+      <svg id="node-graph" viewBox="0 0 300 300" role="img" aria-label="Agent traffic graph">
+        <desc id="node-graph-desc">No traffic yet.</desc>
+      </svg>
+    </div>
+    <div class="traffic-block">
+      <h3>Messages / minute (last 60m)</h3>
+      <svg id="stats-chart" viewBox="0 0 400 200" role="img" aria-label="Message counts over time per edge">
+        <desc>Line chart of message counts per minute, one line per agent pair.</desc>
+      </svg>
+      <div id="chart-legend" class="legend"></div>
+    </div>
+    <div class="traffic-block">
+      <h3>Harness</h3>
+      <div class="harness-box">
+        <div class="harness-row"><strong>Blockers</strong><ul id="blockers-list"></ul></div>
+        <div class="harness-row"><strong>Units</strong><ul id="units-list"></ul></div>
+        <div class="harness-row"><strong>Wisdom</strong> <span id="wisdom-badge" class="badge">—</span></div>
+        <div class="harness-row"><strong>Live sessions</strong><ul id="live-sessions-list"></ul></div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div id="toast-container" aria-live="polite"></div>
+
+<script>
+'use strict';
+
+/* ---------- tiny DOM helpers ---------- */
+var $ = function (id) { return document.getElementById(id); };
+function svgEl(tag, attrs) {
+  var e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  if (attrs) { for (var k in attrs) { e.setAttribute(k, attrs[k]); } }
+  return e;
+}
+
+/* ---------- element refs ---------- */
+var asOfEl = $('as-of'), bannerEl = $('banner');
+var rosterList = $('roster-list');
+var vendorSelect = $('vendor-select'), modelSelect = $('model-select'), effortSelect = $('effort-select');
+var nameInput = $('name-input'), applyBtn = $('apply-btn'), newSessionBtn = $('new-session-btn');
+var sessionIdEl = $('session-id'), turnsEl = $('turns-count'), busyDotEl = $('busy-dot'), busyTextEl = $('busy-text');
+var feedList = $('feed-list');
+var composerForm = $('composer-form'), composerInput = $('composer-input'), sendBtn = $('send-btn');
+var delegateForm = $('delegate-form'), delegateTo = $('delegate-to'), delegateClass = $('delegate-class');
+var delegateModel = $('delegate-model'), delegatePrompt = $('delegate-prompt'), delegateSubmit = $('delegate-submit');
+var nodeGraphSvg = $('node-graph'), nodeGraphDesc = $('node-graph-desc');
+var statsSvg = $('stats-chart'), legendEl = $('chart-legend');
+var blockersEl = $('blockers-list'), unitsEl = $('units-list'), wisdomEl = $('wisdom-badge'), liveSessionsEl = $('live-sessions-list');
+var toastContainer = $('toast-container');
+
+/* ---------- module state ---------- */
+var lastState = null;
+var agentsById = new Map();
+var formDirty = false;
+var feedInitialized = false;
+var expandedMessages = new Set();
+var renderedMessageIds = new Set();
+var lastMessageId = null;
+
+/* ---------- formatting helpers ---------- */
+function pad2(n) { return String(n).padStart(2, '0'); }
+function formatTime(d) { return pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds()); }
+function formatBucketLabel(ts) {
+  var d = new Date(ts);
+  if (isNaN(d.getTime())) { return ''; }
+  return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+}
+function formatDuration(ms) {
+  if (ms === null || ms === undefined || isNaN(ms)) { return ''; }
+  if (ms < 1000) { return ms + 'ms'; }
+  return (ms / 1000).toFixed(1) + 's';
+}
+function shortId(id) {
+  if (!id) { return '—'; }
+  return id.length > 12 ? (id.slice(0, 6) + '…' + id.slice(-4)) : id;
+}
+function initialFor(s) {
+  var t = (s || '').trim();
+  return t ? t[0].toUpperCase() : '?';
+}
+function colorForId(id) {
+  var s = String(id || '');
+  var h = 0;
+  for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; }
+  return 'hsl(' + (h % 360) + ', 60%, 45%)';
+}
+var EDGE_PALETTE = ['#5865f2', '#23a55a', '#f0b232', '#eb459e', '#f23f42', '#00b0f4', '#949cf2', '#3ba55d', '#faa61a', '#c2c5cc'];
+function colorForEdge(key) {
+  var h = 0;
+  for (var i = 0; i < key.length; i++) { h = (h * 31 + key.charCodeAt(i)) >>> 0; }
+  return EDGE_PALETTE[h % EDGE_PALETTE.length];
+}
+
+/* ---------- name resolution (req 6: resolve ids via agents array; unknown ids show raw id) ---------- */
+function buildAgentsById(state) {
+  var map = new Map();
+  var agents = state.agents || [];
+  for (var i = 0; i < agents.length; i++) { map.set(agents[i].id, agents[i]); }
+  return map;
+}
+function nameFor(id) {
+  var a = agentsById.get(id);
+  return (a && a.name) || id;
+}
+function makeAvatar(id) {
+  var el = document.createElement('div');
+  el.className = 'avatar';
+  el.style.backgroundColor = colorForId(id);
+  el.textContent = initialFor(nameFor(id));
+  el.setAttribute('aria-hidden', 'true');
+  return el;
+}
+function statusDotClass(status) {
+  if (status === 'busy') { return 'dot-busy'; }
+  if (status === 'error') { return 'dot-error'; }
+  return 'dot-idle';
+}
+
+/* ---------- long-text collapse (req 2: ~12 lines, show more/less, state kept per message id) ---------- */
+function appendClampedText(container, text, id) {
+  var p = document.createElement('div');
+  p.className = 'msg-text';
+  p.textContent = text || '';
+  var isExpanded = expandedMessages.has(id);
+  if (!isExpanded) { p.classList.add('clamp'); }
+  container.appendChild(p);
+  requestAnimationFrame(function () {
+    var overflowing = p.scrollHeight > p.clientHeight + 1;
+    if (overflowing || isExpanded) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'show-more-btn';
+      var setLabel = function () {
+        var exp = expandedMessages.has(id);
+        btn.textContent = exp ? 'Show less' : 'Show more';
+        btn.setAttribute('aria-expanded', String(exp));
+      };
+      btn.addEventListener('click', function () {
+        if (expandedMessages.has(id)) { expandedMessages.delete(id); } else { expandedMessages.add(id); }
+        p.classList.toggle('clamp');
+        setLabel();
+      });
+      setLabel();
+      container.appendChild(btn);
+    }
+  });
+}
+
+/* ---------- feed rendering (req 2, 6) ---------- */
+function renderMessage(m) {
+  var row = document.createElement('div');
+  row.className = 'msg msg-' + m.kind;
+  var when = m.ts ? formatTime(new Date(m.ts)) : '';
+
+  if (m.kind === 'tool_use') {
+    row.classList.add('msg-arrow');
+    var main = document.createElement('div');
+    main.className = 'msg-main';
+    var header = document.createElement('div');
+    header.className = 'msg-header';
+    var ts = document.createElement('span');
+    ts.className = 'ts';
+    ts.textContent = when;
+    header.appendChild(ts);
+    if (m.meta && m.meta.class) {
+      var tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = m.meta.class;
+      header.appendChild(tag);
+    }
+    main.appendChild(header);
+    var combined = '→ delegate to ' + nameFor(m.to) + ': ' + (m.text || '');
+    appendClampedText(main, combined, m.id);
+    row.appendChild(main);
+    return row;
+  }
+
+  row.appendChild(makeAvatar(m.from));
+  var mainEl = document.createElement('div');
+  mainEl.className = 'msg-main';
+  var headerEl = document.createElement('div');
+  headerEl.className = 'msg-header';
+  var nameEl = document.createElement('span');
+  nameEl.className = 'msg-name';
+  nameEl.textContent = nameFor(m.from);
+  headerEl.appendChild(nameEl);
+  var tsEl = document.createElement('span');
+  tsEl.className = 'ts';
+  tsEl.textContent = when;
+  headerEl.appendChild(tsEl);
+  if (m.kind === 'receipt') {
+    var rc = (m.meta && m.meta.root_code) || 'unknown';
+    var badge = document.createElement('span');
+    badge.className = 'badge ' + (rc === 'ok' ? 'badge-ok' : 'badge-bad');
+    var durTxt = (m.meta && m.meta.duration_ms != null) ? (' · ' + formatDuration(m.meta.duration_ms)) : '';
+    badge.textContent = rc + durTxt;
+    headerEl.appendChild(badge);
+  }
+  mainEl.appendChild(headerEl);
+  appendClampedText(mainEl, m.text, m.id);
+  row.appendChild(mainEl);
+  return row;
+}
+
+function renderFeed(state) {
+  var messages = state.messages || [];
+  var currentIds = new Set();
+  for (var i = 0; i < messages.length; i++) { currentIds.add(messages[i].id); }
+  var needsFullRebuild = false;
+  renderedMessageIds.forEach(function (id) { if (!currentIds.has(id)) { needsFullRebuild = true; } });
+
+  var distFromBottom = feedList.scrollHeight - feedList.scrollTop - feedList.clientHeight;
+  var wasNearBottom = !feedInitialized || distFromBottom < 80;
+  var savedScrollTop = feedList.scrollTop;
+
+  if (needsFullRebuild) {
+    feedList.textContent = '';
+    renderedMessageIds.clear();
+  }
+  for (var j = 0; j < messages.length; j++) {
+    var m = messages[j];
+    if (renderedMessageIds.has(m.id)) { continue; }
+    feedList.appendChild(renderMessage(m));
+    renderedMessageIds.add(m.id);
+  }
+  feedInitialized = true;
+  feedList.scrollTop = wasNearBottom ? feedList.scrollHeight : savedScrollTop;
+}
+
+/* ---------- roster (req 3 left column) ---------- */
+function renderRoster(state) {
+  rosterList.textContent = '';
+  var agents = state.agents || [];
+  for (var i = 0; i < agents.length; i++) {
+    var agent = agents[i];
+    var row = document.createElement('div');
+    row.className = 'roster-row';
+    row.appendChild(makeAvatar(agent.id));
+    var info = document.createElement('div');
+    info.className = 'roster-info';
+    var nameEl = document.createElement('div');
+    nameEl.className = 'roster-name';
+    nameEl.textContent = agent.name || agent.id;
+    var subEl = document.createElement('div');
+    subEl.className = 'roster-sub';
+    subEl.textContent = agent.vendor ? (agent.vendor + (agent.model ? (' · ' + agent.model) : '')) : (agent.role || '');
+    info.appendChild(nameEl);
+    info.appendChild(subEl);
+    row.appendChild(info);
+    var statusWrap = document.createElement('div');
+    statusWrap.className = 'roster-status';
+    var dot = document.createElement('span');
+    dot.className = 'dot ' + statusDotClass(agent.status);
+    dot.title = agent.status || 'unknown';
+    var count = document.createElement('span');
+    count.className = 'roster-count';
+    count.textContent = String(agent.messages != null ? agent.messages : 0);
+    statusWrap.appendChild(dot);
+    statusWrap.appendChild(count);
+    row.appendChild(statusWrap);
+    rosterList.appendChild(row);
+  }
+}
+
+/* ---------- orchestrator card (req 3 center top) ---------- */
+function fillSelect(selectEl, items, selected) {
+  selectEl.textContent = '';
+  for (var i = 0; i < items.length; i++) {
+    var opt = document.createElement('option');
+    opt.value = items[i];
+    opt.textContent = items[i];
+    selectEl.appendChild(opt);
+  }
+  if (selected && items.indexOf(selected) !== -1) { selectEl.value = selected; }
+  else if (items.length) { selectEl.value = items[0]; }
+}
+function populateModelEffort(vendor, selModel, selEffort) {
+  var opts = (lastState && lastState.orchestrator && lastState.orchestrator.options && lastState.orchestrator.options[vendor]) || {};
+  fillSelect(modelSelect, opts.models || [], selModel);
+  fillSelect(effortSelect, opts.efforts || [], selEffort);
+}
+function renderOrchestratorCard(state) {
+  var o = state.orchestrator || {};
+  if (!formDirty) {
+    vendorSelect.value = o.vendor || 'claude';
+    populateModelEffort(vendorSelect.value, o.model, o.effort);
+    nameInput.value = o.name || '';
+  }
+  sessionIdEl.textContent = shortId(o.session_ref && o.session_ref.id);
+  turnsEl.textContent = String(o.turns != null ? o.turns : 0);
+  var busy = !!o.busy;
+  busyDotEl.className = 'dot ' + (busy ? 'dot-busy' : 'dot-idle');
+  busyTextEl.textContent = busy ? 'busy' : 'idle';
+}
+function mergeOrchestrator(updated) {
+  if (!updated) { return; }
+  if (lastState) { lastState.orchestrator = updated; }
+  else { lastState = { orchestrator: updated, agents: [], messages: [] }; }
+  renderOrchestratorCard(lastState);
+}
+
+/* ---------- traffic: node graph (req 3 right, part a) ---------- */
+function edgePath(x1, y1, x2, y2, bend) {
+  var mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+  var dx = x2 - x1, dy = y2 - y1;
+  var len = Math.hypot(dx, dy) || 1;
+  var nx = -dy / len, ny = dx / len;
+  var cx = mx + nx * bend, cy = my + ny * bend;
+  return 'M ' + x1 + ' ' + y1 + ' Q ' + cx + ' ' + cy + ' ' + x2 + ' ' + y2;
+}
+function renderNodeGraph(state) {
+  var agents = state.agents || [];
+  nodeGraphSvg.textContent = '';
+  nodeGraphSvg.appendChild(nodeGraphDesc);
+  var W = 300, H = 300, cx = W / 2, cy = H / 2, R = Math.min(W, H) / 2 - 40;
+  var positions = new Map();
+  var n = agents.length || 1;
+  for (var i = 0; i < agents.length; i++) {
+    var angle = (2 * Math.PI * i / n) - Math.PI / 2;
+    positions.set(agents[i].id, { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle) });
+  }
+  var counts = new Map();
+  var messages = state.messages || [];
+  for (var j = 0; j < messages.length; j++) {
+    var m = messages[j];
+    if (!m.from || !m.to || m.from === m.to) { continue; }
+    if (!positions.has(m.from) || !positions.has(m.to)) { continue; }
+    var key = m.from + '|' + m.to;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  var maxCount = 1;
+  counts.forEach(function (c) { if (c > maxCount) { maxCount = c; } });
+
+  var defs = svgEl('defs');
+  var marker = svgEl('marker', { id: 'arrowhead', viewBox: '0 0 10 10', refX: '9', refY: '5', markerWidth: '6', markerHeight: '6', orient: 'auto' });
+  marker.appendChild(svgEl('path', { d: 'M0,0 L10,5 L0,10 z', fill: '#8a8f9c' }));
+  defs.appendChild(marker);
+  nodeGraphSvg.appendChild(defs);
+
+  var descParts = [];
+  counts.forEach(function (count, key) {
+    var parts = key.split('|');
+    var from = parts[0], to = parts[1];
+    var p1 = positions.get(from), p2 = positions.get(to);
+    var reciprocal = to + '|' + from;
+    var bend = counts.has(reciprocal) ? 14 : 0;
+    var d = edgePath(p1.x, p1.y, p2.x, p2.y, bend);
+    var width = 1.5 + (count / maxCount) * 6.5;
+    var path = svgEl('path', { d: d, class: 'ng-edge', fill: 'none', 'stroke-width': String(width), 'marker-end': 'url(#arrowhead)' });
+    var title = svgEl('title');
+    title.textContent = nameFor(from) + ' → ' + nameFor(to) + ': ' + count;
+    path.appendChild(title);
+    nodeGraphSvg.appendChild(path);
+    descParts.push(nameFor(from) + '→' + nameFor(to) + ':' + count);
+  });
+  nodeGraphDesc.textContent = descParts.length ? ('Edges: ' + descParts.join(', ')) : 'No traffic yet.';
+
+  for (var k = 0; k < agents.length; k++) {
+    var agent = agents[k];
+    var pos = positions.get(agent.id);
+    var g = svgEl('g', { transform: 'translate(' + pos.x + ',' + pos.y + ')' });
+    g.appendChild(svgEl('circle', { r: '16', fill: colorForId(agent.id), stroke: '#2b2d31', 'stroke-width': '2' }));
+    var text = svgEl('text', { x: '0', y: '1', 'text-anchor': 'middle', 'dominant-baseline': 'central', class: 'node-initial' });
+    text.textContent = initialFor(agent.name || agent.id);
+    g.appendChild(text);
+    var label = svgEl('text', { x: '0', y: '29', 'text-anchor': 'middle', class: 'node-name' });
+    label.textContent = (agent.name || agent.id).slice(0, 12);
+    g.appendChild(label);
+    var gTitle = svgEl('title');
+    gTitle.textContent = (agent.name || agent.id) + ' — ' + (agent.status || 'unknown');
+    g.appendChild(gTitle);
+    nodeGraphSvg.appendChild(g);
+  }
+}
+
+/* ---------- traffic: stats chart (req 3 right, part b) ---------- */
+function renderStatsChart(stats) {
+  statsSvg.textContent = '';
+  legendEl.textContent = '';
+  var buckets = stats.buckets || [];
+  var edges = stats.edges || [];
+  var W = 400, H = 200, padL = 30, padR = 8, padT = 10, padB = 20;
+  var plotW = W - padL - padR, plotH = H - padT - padB;
+
+  var maxCount = 0;
+  for (var e = 0; e < edges.length; e++) {
+    var counts = edges[e].counts || [];
+    for (var c = 0; c < counts.length; c++) { if (counts[c] > maxCount) { maxCount = counts[c]; } }
+  }
+  var scaleMax = maxCount > 0 ? maxCount : 1;
+  var n = Math.max(buckets.length, 1);
+  function xAt(i) { return padL + (n <= 1 ? 0 : (plotW * i / (n - 1))); }
+  function yAt(v) { return padT + plotH - (v / scaleMax) * plotH; }
+
+  [0, 0.5, 1].forEach(function (t) {
+    var y = padT + plotH - t * plotH;
+    statsSvg.appendChild(svgEl('line', { x1: padL, x2: W - padR, y1: y, y2: y, class: 'axis-line', 'stroke-dasharray': '2,2' }));
+    var label = svgEl('text', { x: padL - 5, y: y + 3, 'text-anchor': 'end', class: 'axis-label' });
+    label.textContent = String(Math.round(t * scaleMax));
+    statsSvg.appendChild(label);
+  });
+  var tickEvery = Math.max(1, Math.ceil(n / 6));
+  for (var bi = 0; bi < buckets.length; bi++) {
+    if (bi % tickEvery !== 0 && bi !== buckets.length - 1) { continue; }
+    var x = xAt(bi);
+    statsSvg.appendChild(svgEl('line', { x1: x, x2: x, y1: H - padB, y2: H - padB + 4, class: 'axis-line' }));
+    var tlabel = svgEl('text', { x: x, y: H - padB + 14, 'text-anchor': 'middle', class: 'axis-label' });
+    tlabel.textContent = formatBucketLabel(buckets[bi]);
+    statsSvg.appendChild(tlabel);
+  }
+  statsSvg.appendChild(svgEl('line', { x1: padL, x2: padL, y1: padT, y2: H - padB, class: 'axis-line' }));
+  statsSvg.appendChild(svgEl('line', { x1: padL, x2: W - padR, y1: H - padB, y2: H - padB, class: 'axis-line' }));
+
+  if (!edges.length || maxCount === 0) {
+    var msg = svgEl('text', { x: W / 2, y: H / 2, 'text-anchor': 'middle', class: 'no-data-label' });
+    msg.textContent = edges.length ? 'No traffic in this window' : 'No edges yet';
+    statsSvg.appendChild(msg);
+  }
+
+  for (var ei = 0; ei < edges.length; ei++) {
+    var edge = edges[ei];
+    var key = edge.from + '|' + edge.to;
+    var color = colorForEdge(key);
+    var pts = (edge.counts || []).map(function (v, i) { return xAt(i) + ',' + yAt(v); }).join(' ');
+    statsSvg.appendChild(svgEl('polyline', { points: pts, fill: 'none', stroke: color, 'stroke-width': '2', 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+
+    var item = document.createElement('div');
+    item.className = 'legend-item';
+    var swatch = document.createElement('span');
+    swatch.className = 'legend-swatch';
+    swatch.style.backgroundColor = color;
+    var label2 = document.createElement('span');
+    label2.textContent = nameFor(edge.from) + ' → ' + nameFor(edge.to);
+    item.appendChild(swatch);
+    item.appendChild(label2);
+    legendEl.appendChild(item);
+  }
+}
+
+/* ---------- harness box (req 3 right, part c) ---------- */
+function fillList(listEl, items, emptyText, toText) {
+  listEl.textContent = '';
+  if (!items || !items.length) {
+    var li = document.createElement('li');
+    li.className = 'muted';
+    li.textContent = emptyText;
+    listEl.appendChild(li);
+    return;
+  }
+  for (var i = 0; i < items.length; i++) {
+    var row = document.createElement('li');
+    row.textContent = toText(items[i]);
+    listEl.appendChild(row);
+  }
+}
+function renderHarnessBox(state) {
+  var h = state.harness || {};
+  fillList(blockersEl, h.blockers || [], 'No blockers', function (b) { return b; });
+  var units = h.units || {};
+  var unitNames = Object.keys(units);
+  fillList(unitsEl, unitNames, 'No units reported', function (name) { return name + ': ' + units[name]; });
+  var wisdomCode = (h.wisdom && h.wisdom.root_code) || 'unknown';
+  wisdomEl.textContent = wisdomCode;
+  wisdomEl.className = 'badge ' + (wisdomCode === 'ok' ? 'badge-ok' : 'badge-bad');
+  fillList(liveSessionsEl, state.live_sessions || [], 'No live sessions', function (s) {
+    return (s.name || ('pid:' + s.pid)) + ' — ' + (s.status || 'unknown');
+  });
+}
+
+/* ---------- toasts + error banner (req 5) ---------- */
+function setBannerError(msg) {
+  if (!msg) { bannerEl.hidden = true; bannerEl.textContent = ''; }
+  else { bannerEl.hidden = false; bannerEl.textContent = msg; }
+}
+function showToast(message, isError) {
+  var t = document.createElement('div');
+  t.className = 'toast' + (isError ? ' toast-error' : '');
+  t.textContent = message;
+  t.setAttribute('role', 'status');
+  toastContainer.appendChild(t);
+  setTimeout(function () {
+    t.classList.add('toast-out');
+    setTimeout(function () { t.remove(); }, 300);
+  }, 3500);
+}
+
+/* ---------- networking ---------- */
+function postJSON(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {})
+  }).then(function (res) {
+    return res.json().catch(function () { return null; }).then(function (data) {
+      if (!res.ok) {
+        var err = new Error((data && data.error) || ('HTTP ' + res.status));
+        err.status = res.status;
+        throw err;
+      }
+      return data;
+    });
+  });
+}
+
+/* ---------- apply top-level state to the whole page ---------- */
+function applyState(state) {
+  lastState = state;
+  agentsById = buildAgentsById(state);
+  renderRoster(state);
+  renderOrchestratorCard(state);
+  renderFeed(state);
+  renderNodeGraph(state);
+  renderHarnessBox(state);
+  var asOf = state.as_of ? new Date(state.as_of) : new Date();
+  asOfEl.textContent = 'as of ' + formatTime(asOf);
+  var busy = !!(state.orchestrator && state.orchestrator.busy);
+  composerInput.disabled = busy;
+  sendBtn.disabled = busy;
+}
+
+/* ---------- actions ---------- */
+applyBtn.addEventListener('click', function () {
+  applyBtn.disabled = true;
+  var body = {
+    vendor: vendorSelect.value,
+    model: modelSelect.value || undefined,
+    effort: effortSelect.value || undefined,
+    name: nameInput.value.trim() || undefined
+  };
+  postJSON('/api/orchestrator', body).then(function (updated) {
+    formDirty = false;
+    mergeOrchestrator(updated);
+    showToast('Orchestrator updated');
+  }).catch(function (err) {
+    showToast('Failed to update orchestrator: ' + err.message, true);
+  }).then(function () { applyBtn.disabled = false; });
+});
+
+newSessionBtn.addEventListener('click', function () {
+  newSessionBtn.disabled = true;
+  postJSON('/api/orchestrator', { reset: true }).then(function (updated) {
+    formDirty = false;
+    mergeOrchestrator(updated);
+    showToast('New session started');
+  }).catch(function (err) {
+    showToast('Failed to reset session: ' + err.message, true);
+  }).then(function () { newSessionBtn.disabled = false; });
+});
+
+[vendorSelect, modelSelect, effortSelect, nameInput].forEach(function (elm) {
+  elm.addEventListener('input', function () { formDirty = true; });
+});
+vendorSelect.addEventListener('change', function () {
+  formDirty = true;
+  populateModelEffort(vendorSelect.value, null, null);
+});
+
+function sendMessage() {
+  var text = composerInput.value;
+  if (!text.trim()) { return; }
+  composerInput.disabled = true;
+  sendBtn.disabled = true;
+  postJSON('/api/say', { text: text }).then(function () {
+    composerInput.value = '';
+  }).catch(function (err) {
+    if (err.status === 409) { showToast('Orchestrator is busy', true); }
+    else { showToast('Failed to send: ' + err.message, true); }
+  }).then(function () {
+    var busy = !!(lastState && lastState.orchestrator && lastState.orchestrator.busy);
+    composerInput.disabled = busy;
+    sendBtn.disabled = busy;
+    if (!busy) { composerInput.focus(); }
+  });
+}
+composerForm.addEventListener('submit', function (e) { e.preventDefault(); sendMessage(); });
+composerInput.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+delegateForm.addEventListener('submit', function (e) {
+  e.preventDefault();
+  var to = delegateTo.value.trim();
+  var promptText = delegatePrompt.value.trim();
+  if (!to || !promptText) { showToast('to and prompt are required', true); return; }
+  var body = { to: to, prompt: promptText, class: delegateClass.value };
+  var modelVal = delegateModel.value.trim();
+  if (modelVal) { body.model = modelVal; }
+  delegateSubmit.disabled = true;
+  postJSON('/api/delegate', body).then(function (res) {
+    showToast('Delegation started' + (res && res.id ? (' (' + res.id + ')') : ''));
+    delegatePrompt.value = '';
+  }).catch(function (err) {
+    showToast('Delegate failed: ' + err.message, true);
+  }).then(function () { delegateSubmit.disabled = false; });
+});
+
+/* ---------- polling (req 5) ---------- */
+function pollState() {
+  fetch('/api/state').then(function (res) {
+    if (!res.ok) { throw new Error('state ' + res.status); }
+    return res.json();
+  }).then(function (data) {
+    var last = data.messages && data.messages.length ? data.messages[data.messages.length - 1].id : null;
+    var changed = last !== lastMessageId;
+    lastMessageId = last;
+    applyState(data);
+    setBannerError(null);
+    var busy = !!(data.orchestrator && data.orchestrator.busy);
+    setTimeout(pollState, (busy || changed) ? 2000 : 8000);
+  }).catch(function (err) {
+    setBannerError('Cannot reach harness server (' + (err && err.message ? err.message : err) + '). Retrying…');
+    setTimeout(pollState, 4000);
+  });
+}
+function pollStats() {
+  fetch('/api/stats?minutes=60').then(function (res) {
+    if (!res.ok) { throw new Error('stats ' + res.status); }
+    return res.json();
+  }).then(function (data) {
+    renderStatsChart(data);
+  }).catch(function (err) {
+    setBannerError('Cannot reach harness server (' + (err && err.message ? err.message : err) + '). Retrying…');
+  }).then(function () {
+    setTimeout(pollStats, 15000);
+  });
+}
+
+/* ---------- init ---------- */
+pollState();
+pollStats();
+</script>
+</body>
+</html>

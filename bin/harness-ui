@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""agent-harness-ui launcher: `harness-ui [serve] [--port 7788] [--host 127.0.0.1]` or `harness-ui install-unit [--dry-run]`.
+
+The core package `harness` lives in a separate repo; it is located via $AGENT_HARNESS_ROOT, then the sibling directory
+../agent-harness, then ~/GitHub/Projects/Personal/agent-harness.
+"""
+from __future__ import annotations
+
+import argparse
+import os
+import pathlib
+import subprocess
+import sys
+
+UI_ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
+def core_root() -> pathlib.Path | None:
+    for c in (os.environ.get("AGENT_HARNESS_ROOT"), UI_ROOT.parent / "agent-harness", pathlib.Path.home() / "GitHub/Projects/Personal/agent-harness"):
+        if c and (pathlib.Path(c) / "harness" / "__init__.py").is_file():
+            return pathlib.Path(c).resolve()
+    return None
+
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(prog="harness-ui")
+    sub = ap.add_subparsers(dest="cmd")
+    sv = sub.add_parser("serve", help="serve the loopback UI (default)")
+    sv.add_argument("--port", type=int, default=7788)
+    sv.add_argument("--host", default="127.0.0.1")
+    iu = sub.add_parser("install-unit", help="write ~/.config/systemd/user/harness-ui.service (you enable it)")
+    iu.add_argument("--dry-run", action="store_true")
+    args = argv if argv is not None else sys.argv[1:]
+    if not args or args[0].startswith("-"):
+        args = ["serve", *args]
+    a = ap.parse_args(args)
+    core = core_root()
+    if core is None:
+        print("harness-ui: agent-harness core not found; set AGENT_HARNESS_ROOT to its checkout", file=sys.stderr)
+        return 2
+    sys.path.insert(0, str(UI_ROOT))
+    sys.path.insert(0, str(core))
+    if a.cmd == "install-unit":
+        unit_dir = pathlib.Path.home() / ".config/systemd/user"
+        text = (UI_ROOT / "systemd" / "harness-ui.service").read_text().replace("@UI_REPO@", str(UI_ROOT)).replace("@HOME@", str(pathlib.Path.home()))
+        dst = unit_dir / "harness-ui.service"
+        if a.dry_run:
+            print(text)
+            return 0
+        unit_dir.mkdir(parents=True, exist_ok=True)
+        dst.write_text(text)
+        subprocess.run(["systemctl", "--user", "daemon-reload"], check=False)
+        print(f"wrote {dst}; enable with: systemctl --user enable --now harness-ui")
+        return 0
+    from harness_ui.server import serve  # noqa: E402
+    return serve(a.host, a.port)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
