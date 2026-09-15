@@ -84,11 +84,11 @@ RATE = collections.deque()
 def state_view() -> dict:
     cfg = orch.load_cfg()
     busy = orch.REGISTRY.busy()
-    msgs = orch.read_messages(300)
-    o = {k: cfg.get(k) for k in ("vendor", "model", "effort", "name", "session_ref", "cwd", "turns", "playbook", "team")}
+    msgs = orch.read_messages(300, cfg.get('feed_offset', 0))
+    o = {k: cfg.get(k) for k in ("vendor", "model", "effort", "name", "session_ref", "cwd", "turns", "playbook", "team", "feed_offset")}
     o.update(busy=busy, current_turn=orch.REGISTRY.current if busy else None, options=orch.options())
     return {"as_of": now_iso(), "version": __version__, "core_version": core_version, "orchestrator": o, "agents": orch.agents_view(msgs, cfg, busy),
-            "messages": msgs, "playbooks": playbooks.catalog(), "teams": teams.catalog(), "today": orch.today_stats(), "live_sessions": CACHE.live_sessions(), "workers": workers.active(), "harness": CACHE.harness_status()}
+            "messages": msgs, "goal": orch.goal_view(), "playbooks": playbooks.catalog(), "teams": teams.catalog(), "today": orch.today_stats(), "live_sessions": CACHE.live_sessions(), "workers": workers.active(), "harness": CACHE.harness_status()}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -190,6 +190,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, safe_data(rec)) if rec else self._json(404, {"error": "unknown receipt"})
         if u.path == "/api/state":
             return self._json(200, state_view())
+        if u.path == '/api/goal':
+            try:
+                return self._json(200, orch.goal_view(refresh=True))
+            except (ValueError, OSError) as exc:
+                return self._json(503, {'error': str(exc)})
         if u.path == "/api/push":
             push = getattr(self.server, 'push', None)
             return self._json(200, push.status() if push else {"available": False, "error": "background notifications are not configured"})
@@ -279,6 +284,23 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError as exc:
                 return self._json(400, {"error": str(exc)})
             return self._json(202, {"id": rid, "status": "started"})
+        if u.path == '/api/goal':
+            try:
+                return self._json(200, orch.goal_command(body.get('action'), body.get('objective'), body.get('token_budget')))
+            except orch.Busy as exc:
+                return self._json(409, {'error': str(exc)})
+            except (ValueError, OSError) as exc:
+                return self._json(400, {'error': str(exc)})
+        if u.path == '/api/clear':
+            try:
+                if type(body.get('clear_view', True)) is not bool:
+                    raise ValueError('clear_view must be a boolean')
+                cfg = orch.end_session(clear_view=body.get('clear_view', True), name=body.get('name'))
+                return self._json(200, {'status':'cleared', 'feed_offset': cfg.get('feed_offset', 0)})
+            except orch.Busy as exc:
+                return self._json(409, {'error': str(exc)})
+            except ValueError as exc:
+                return self._json(400, {'error': str(exc)})
         if u.path == "/api/orchestrator":
             cfg, err = orch.update_cfg(body)
             if err:
@@ -294,9 +316,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(409, {'error': str(exc)})
         if u.path == "/api/say":
             try:
-                tid = orch.start_turn(body.get("text"))
-            except orch.Busy:
-                return self._json(409, {"error": "busy"})
+                text = body.get('text')
+                if isinstance(text, str) and re.match(r'^/[A-Za-z][\w-]*(?:\s|$)', text.strip()):
+                    raise ValueError('Slash commands must use the command menu; refresh the app and see /help. Use // to send a literal slash prompt.')
+                if isinstance(text, str) and text.startswith('//'):
+                    text = text[1:]
+                tid = orch.start_turn(text)
+            except orch.Busy as exc:
+                return self._json(409, {"error": str(exc) or "busy"})
             except ValueError as e:
                 return self._json(400, {"error": str(e)})
             return self._json(202, {"turn_id": tid, "status": "started"})

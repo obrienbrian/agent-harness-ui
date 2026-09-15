@@ -194,3 +194,35 @@ verified Serve identity. The remote page/assets also require that identity. Wron
 The manifest has a stable ID, standalone display, and 192/512 PNG icons. The service worker handles push
 and clicks without caching APIs. Payloads contain generic text and a local saved-work link. Background
 display requires the phone owner to subscribe and grant OS permission.
+
+## Help and native goal additions — UI 0.6.0 / core 0.4.0
+
+- `GET /api/goal` refreshes native metadata for the active Harness Codex thread only. Returns
+  `{supported, goal, running, pending}`; unsupported providers include a message and null goal. Goal
+  contains native `threadId`, `objective`, `status`, `tokenBudget`, `tokensUsed`, `timeUsedSeconds`, and
+  timestamps. Optional `execution_error` records a Harness continuation failure. This is a metadata
+  operation, never a model request. Unavailable native service returns 503.
+- `POST /api/goal` takes `action: set|edit|pause|resume|clear`, plus an objective (1–4,000 characters)
+  for set/edit and optional positive-integer `token_budget`. Null/omitted budget on set/edit removes a
+  budget. Set/resume starts work; edit saves paused with reset accounting; pause/clear can stop active
+  work. Native non-active status or turn failure stops continuation. Busy conflicts return 409;
+  unsupported/invalid requests return 400. Provider/workspace/playbook/team/reset changes require pause.
+- `/api/state` adds `goal` with the same shape from a cached snapshot: no native subprocess per poll.
+  `orchestrator.busy` includes gaps between managed goal turns. After restart, `running:false` even if
+  native status is active; explicit resume is required. Permission scope stays unchanged.
+- `POST /api/clear` takes optional boolean `clear_view` (default true) and optional session `name`.
+  Resets the active conversation, preserves history/receipts/settings, and if requested advances the
+  persisted `orchestrator.feed_offset` to the current message-log byte length. Returns
+  `{status:"cleared",feed_offset}`. Busy turns/goals return 409; bad input returns 400.
+- New messages have an additive byte `offset`. State messages are read after the feed boundary. History,
+  receipts, stats and exports still read all saved messages. Clients reject older feed generations and
+  discard below-boundary replay events; `/new` calls clear with `clear_view:false`.
+- Slash commands are frontend controls, not model instructions. `/api/say` refuses command-shaped
+  single-slash text (400); `//` escapes one slash. Absolute filesystem paths remain valid prompts.
+  Unsupported native CLI commands such as `/compact`, `/permissions`, `/mcp`, and native chat `/resume`
+  are not forwarded. Worker receipt resume remains available in its existing drawer.
+- Goal chains emit one terminal background notification instead of one per continuation. Native goal
+  state is authoritative, including usage accounting that stops when the goal is marked complete.
+
+All existing Host/Origin/auth/JSON/rate-limit checks apply to these routes. No thread ID or RPC method
+is accepted from an API client. The installed vendor CLI alone handles its own credentials.

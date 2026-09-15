@@ -48,6 +48,8 @@ class Fixture:
         self.calls = 0
         self.orch_updates = {}
         self.uploads = []
+        self.goal = None
+        self.goal_running = False
 
     @property
     def busy(self) -> bool:
@@ -88,7 +90,14 @@ class Fixture:
             for i, (wid, nm, role) in enumerate(EXTRA):
                 ms += [msg(100 + i * 2, 300 - i * 10, "orchestrator", wid, "tool_use", f"Task for {nm}", {"tool": "delegate", "class": "readonly", "label": role, "turn_id": "t_9f21bb22"}),
                        msg(101 + i * 2, 295 - i * 10, wid, "orchestrator", "receipt", f"{nm} done", {"root_code": "ok", "delegation_id": f"dlg_m{i}", "duration_ms": 2000 + i * 700, "class": "readonly"})]
-        return [] if self.scenario == "empty" else ms
+        for i, m in enumerate(ms):
+            m['offset'] = i * 1000
+        return [] if self.scenario == "empty" else [m for m in ms if m['offset'] >= self.orch_updates.get('feed_offset', 0)]
+
+    def goal_view(self):
+        supported = self.orch_updates.get('vendor','claude') == 'codex'
+        return {'supported':supported, 'goal':self.goal, 'running':self.goal_running, 'pending':None,
+                'message':'Goal mode is available with Codex. Select a Codex model in Session setup.'}
 
     def state(self) -> dict:
         self.calls += 1
@@ -113,8 +122,9 @@ class Fixture:
                     agents.append({"id": wid, "name": nm, "vendor": parts[1], "model": parts[2], "role": "worker", "status": "idle", "messages": count(wid), "last_seen": iso(290)})
         return {
             "as_of": iso(0), "version": "fixture", "core_version": "fixture",
+            "goal": self.goal_view(),
             "orchestrator": {"vendor": "claude", "model": "fable", "effort": "high", "name": "Orchestrator", "session_ref": {"kind": "claude_session", "id": "86b8a730-fixture"},
-                             "cwd": "/home/user/projects", "busy": self.busy, "turns": 4 if self.busy else 3, "current_turn": "t_a3c7cc33" if self.busy else None,
+                             "cwd": "/home/user/projects", "busy": self.busy or self.goal_running, "turns": 4 if self.busy else 3, "current_turn": "t_a3c7cc33" if self.busy or self.goal_running else None,
                              "playbook": "wisdom", "team": {"mode": "suggest", "roles": [{"label": "Verifier", "to": "claude", "model": "haiku", "effort": "high", "class": "readonly", "brief": "Check evidence."}]},
                              "options": {"targets": ["claude", "codex"], "claude": {"models": ["fable", "opus", "sonnet", "haiku"], "efforts": ["low", "medium", "high", "xhigh", "max"]},
                                          "codex": {"models": ["gpt-5.6-sol", "gpt-6-astra", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5", "gpt-5.3-codex-spark"], "efforts": ["minimal", "low", "medium", "high", "xhigh", "max"], "model_efforts": {"gpt-5.6-sol": ["low", "medium", "high", "xhigh"]}}}, **self.orch_updates},
@@ -168,6 +178,8 @@ def make_handler(fx: Fixture):
                 return self._json(200, fx.stats())
             if p == '/api/push':
                 return self._json(200, {'available':False, 'error':'fixture does not send notifications'})
+            if p == '/api/goal':
+                return self._json(200, fx.goal_view())
             if p in ('/api/playbooks', '/api/teams'):
                 key = p.rsplit('/', 1)[1]
                 return self._json(200, {key: fx.state()[key]})
@@ -175,6 +187,21 @@ def make_handler(fx: Fixture):
 
         def do_POST(self):  # noqa: N802
             n = int(self.headers.get("Content-Length") or 0); body = json.loads(self.rfile.read(n) or b'{}')
+            if self.path == '/api/goal':
+                if not fx.goal_view()['supported']:
+                    return self._json(400, {'error':'Goal mode requires Codex'})
+                action = body['action']
+                if action in ('set','edit'):
+                    fx.goal = {'threadId':'fixture-thread','objective':body['objective'],'status':'active' if action=='set' else 'paused', 'tokensUsed':0,'tokenBudget':body.get('token_budget'),'timeUsedSeconds':0}
+                    fx.goal_running = action == 'set'
+                elif action == 'clear': fx.goal = None; fx.goal_running = False
+                else: fx.goal['status'] = 'paused' if action == 'pause' else 'active'; fx.goal_running = action == 'resume'
+                return self._json(200, fx.goal_view())
+            if self.path == '/api/clear':
+                if fx.busy or fx.goal_running: return self._json(409, {'error':'Stop work first'})
+                fx.orch_updates['session_ref'] = None; fx.goal = None
+                if body.get('clear_view',True): fx.orch_updates['feed_offset'] = 1000000
+                return self._json(200, {'status':'cleared','feed_offset':fx.orch_updates.get('feed_offset',0)})
             if self.path == "/api/say":
                 return self._json(409, {"error": "busy"}) if fx.busy else self._json(202, {"turn_id": "t_new", "status": "started"})
             if self.path == "/api/orchestrator":

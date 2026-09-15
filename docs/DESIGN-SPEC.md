@@ -205,3 +205,20 @@ ticking (they are text, not animation).
   turn_id,root_code,duration_ms,usage,direct}`. Never iterate `meta` generically, never print `cwd`
   outside the settings drawer, never surface a raw agent id except in a `title` tooltip.
 - No Stop control. The composer explains the wait instead.
+
+## Help and command flow — UI 0.6.0
+
+One command registry supplies composer suggestions and the Help reference. Top-bar `?` and the command
+palette open the existing focus-trapped drawer, with Getting started and Commands views. Command rows
+insert text for review, never execute on tap. Help covers workspace choice, real exchanges, goals,
+playbooks, team/delegation, sessions/history, Stop/reset, phone lifecycle, notifications, and shortcuts.
+
+`/goal` uses the native Codex goal contract. A compact strip above the composer shows objective, status,
+and native token usage. The detail drawer has pause/resume/edit/clear and an optional-budget form. Form
+values are never overwritten by incoming state events. Unsupported providers explain how to select Codex.
+`/clear` retains history but advances an exact feed boundary; stale polls and event replay cannot undo it.
+
+Proof: API boundary/history tests; installed Codex + isolated localhost provider in core; Chromium
+interactions through actual composer and forms, including busy commands, keyboard selection, clear/new,
+unsupported-command refusal, 320/390/1440px layouts. Same existing overlay/focus, SSE/poll, and permission
+mechanisms. Rollback UI and core together to 0.5.0/0.3.0 and restart only while idle.

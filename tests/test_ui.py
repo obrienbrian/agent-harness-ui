@@ -195,7 +195,7 @@ class Api(unittest.TestCase):
             self.assertNotIn(banned, script, banned)
         self.assertEqual(set(re.findall(r"https?://[^\"' )]+", src)), {"http://www.w3.org/2000/svg"})
         endpoints = set(re.findall(r"'(/api/[a-z]+)", script))
-        self.assertEqual(endpoints, {"/api/state", "/api/stats", "/api/orchestrator", "/api/say", "/api/delegate", "/api/playbooks", "/api/teams", "/api/turn", "/api/receipt", "/api/turns", "/api/events", "/api/push", "/api/sessions"})
+        self.assertEqual(endpoints, {"/api/state", "/api/stats", "/api/orchestrator", "/api/say", "/api/delegate", "/api/playbooks", "/api/teams", "/api/turn", "/api/receipt", "/api/turns", "/api/events", "/api/push", "/api/sessions", "/api/goal", "/api/clear"})
         self.assertIn('name="viewport"', src)
         self.assertIn("@media (max-width:859px)", src)
         self.assertIn("prefers-reduced-motion", src)
@@ -228,6 +228,42 @@ class V2Api(unittest.TestCase):
 
     def tearDown(self):
         call("POST", "/api/orchestrator", {"playbook": "wisdom", "team": {"mode": "suggest", "roles": []}, "reset": True})
+
+    def test_commands_reject_unknown_and_escape_literal(self):
+        before = STUB_LOG.read_bytes() if STUB_LOG.exists() else b''
+        for text in ['/clear', '/goal fix things', '/compact', '/not-a-command']:
+            self.assertEqual(call('POST','/api/say',{'text':text})[0],400)
+        self.assertEqual(STUB_LOG.read_bytes() if STUB_LOG.exists() else b'',before)
+        st, turn = call('POST','/api/say',{'text':'//literal command text'})
+        self.assertEqual(st,202,turn)
+        wait_turn(turn['turn_id'])
+        messages = call('GET','/api/turn/'+turn['turn_id'])[1]['messages']
+        self.assertEqual(next(m['text'] for m in messages if m['kind']=='prompt'),'/literal command text')
+
+    def test_clear_new_and_busy_history_boundary(self):
+        st, turn = call('POST','/api/say',{'text':'SLOW preserve this history'})
+        self.assertEqual(st,202)
+        self.assertEqual(call('POST','/api/clear',{})[0],409)
+        call('POST','/api/turn/'+turn['turn_id']+'/stop',{})
+        wait_turn(turn['turn_id'])
+        before = call('GET','/api/state')[1]['messages']
+        self.assertTrue(before)
+        self.assertEqual(call('POST','/api/clear',{'clear_view':False,'name':'Fresh'})[0],200)
+        self.assertEqual(call('GET','/api/state')[1]['messages'],before)
+        self.assertEqual(call('POST','/api/clear',{'clear_view':'yes'})[0],400)
+        self.assertEqual(call('POST','/api/clear',{})[0],200)
+        state = call('GET','/api/state')[1]
+        self.assertEqual(state['messages'],[])
+        self.assertIsNone(state['orchestrator']['session_ref'])
+        self.assertEqual(state['orchestrator']['playbook'],'wisdom')
+        self.assertTrue(call('GET','/api/turn/'+turn['turn_id'])[1]['messages'])
+        self.assertTrue(any(t['turn_id']==turn['turn_id'] for t in call('GET','/api/turns')[1]['turns']))
+
+    def test_goal_provider_boundary(self):
+        status, view = call('GET','/api/goal')
+        self.assertEqual(status,200)
+        self.assertFalse(view['supported'])
+        self.assertEqual(call('POST','/api/goal',{'action':'set','objective':'No Claude goal'})[0],400)
 
     def test_playbook_and_team_reach_turn_and_worker(self):
         from harness import delegate as dg

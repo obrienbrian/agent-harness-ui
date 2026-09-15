@@ -1,3 +1,15 @@
+# Agent Harness UI 0.6.0
+
+Released locally on 2026-09-15. Requires Agent Harness core 0.4.0 and installed Codex with native goal support (verified with 0.154.0).
+
+- **Help & instructions:** the top-bar **?** opens getting-started instructions and a command reference, on desktop and phone.
+- **Slash commands:** type `/` to browse and select commands. `/clear` resets the conversation and visible feed while keeping saved history; `/new` keeps the feed visible. Model, effort, settings, playbook, team, sessions, status, history, theme, delegate, and Stop controls have commands too.
+- **Native Codex goals:** `/goal <objective>` starts persistent work. `/goal` opens the goal panel, including an optional token budget. Pause, resume, edit, and clear are available from the panel or commands. The goal bar shows native status and usage. Claude goals and other terminal-only commands are explicitly unsupported.
+- **Reliable controls:** busy work still permits commands such as pause/stop; resets are rejected while busy. Unknown slash commands never become prompts. Use `//` for literal slash text. Old event/poll data cannot restore a cleared feed.
+- **Lightweight:** no new frontend dependencies, assets, recurring requests, or paid capability probes. Native goal metadata is read on demand; ordinary state updates use the saved snapshot. WISDOM remains the default.
+
+Goals stop on completion, native limits/blocking, errors, or user Stop. After a service restart, resume explicitly. Goals use existing permissions. Saving an edited objective resets native goal accounting; a blank budget removes the cap.
+
 # Agent Harness UI 0.5.0
 
 Released locally on 2026-09-15. Requires Agent Harness core 0.3.0.

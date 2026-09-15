@@ -1,6 +1,6 @@
 # agent-harness-ui
 
-Current release: **0.4.0**, with core **0.3.0**. See [release notes](docs/RELEASE-NOTES.md).
+Current release: **0.6.0**, with core **0.4.0**. See [release notes](docs/RELEASE-NOTES.md).
 
 This release adds private phone access, session controls, worker cancellation, and background push.
 See [phone setup and daily use](docs/PHONE.md). The private app and Android test notification were verified.

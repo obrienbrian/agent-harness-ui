@@ -621,6 +621,32 @@
   .upload-zone .btn { position:relative; margin-top:6px; overflow:hidden; cursor:pointer; }
   .upload-zone input { position:absolute; inset:0; opacity:0; width:100%; cursor:pointer; }
   .upload-zone .btn:focus-within { outline:2px solid var(--accent); outline-offset:3px; }
+  .help-btn { display:grid; place-items:center; width:32px; height:32px; flex:none; border:1px solid var(--line-strong); border-radius:50%; color:var(--ink-2); font-weight:600; }
+  .help-tabs { display:flex; gap:8px; margin:16px 0; }
+  .help-tabs button { flex:1; }
+  .help-tabs button[aria-pressed="true"] { color:var(--accent); border-color:var(--accent-line); background:var(--accent-soft); }
+  .help-section { border:1px solid var(--line); border-radius:12px; padding:15px; margin:12px 0; background:var(--panel); }
+  .help-section h3 { margin:0 0 8px; font-size:14px; }
+  .help-section p { margin:6px 0; font-size:12px; line-height:1.7; color:var(--ink-2); }
+  .command-row { display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:11px 12px; border-bottom:1px solid var(--line); color:var(--ink-2); }
+  .command-row code { color:var(--accent); font:12px var(--mono); min-width:84px; }
+  .command-row span { font-size:12px; line-height:1.5; }
+  .v2-drawer .command-row { flex-direction:column; align-items:flex-start; gap:4px; }
+  .command-row code { overflow-wrap:anywhere; }
+  .command-row:hover, .command-row.on { background:var(--accent-soft); }
+  .slashrow { display:block; padding:4px; margin:0; position:absolute; bottom:calc(100% + 8px); left:0; right:0; z-index:20; background:var(--overlay); border:1px solid var(--line-strong); border-radius:12px; box-shadow:var(--shadow-overlay); max-height:min(300px,40dvh); overflow-y:auto; }
+  .cbox { position:relative; }
+  .slashrow .command-row:last-child { border:0; }
+  .command-note { padding:9px 12px; color:var(--ink-3); font-size:11px; }
+  .goal-strip { display:flex; align-items:center; gap:10px; padding:9px 12px; margin-bottom:9px; border:1px solid var(--accent-line); background:var(--accent-soft); border-radius:12px; }
+  .goal-strip .goal-copy { flex:1; min-width:0; }
+  .goal-strip .goal-title { font-size:12px; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+  .goal-strip .goal-meta { color:var(--ink-2); font-size:10px; }
+  .goal-strip button { min-height:36px; height:auto; }
+  .goal-form { display:flex; flex-direction:column; gap:14px; margin:18px 0; }
+  .goal-form label { color:var(--ink-2); font-size:12px; }
+  .goal-form .input { margin-top:6px; }
+  @media(max-width:859px) { #search-btn { display:none; } .help-btn { width:36px; height:40px; border-radius:10px; } .goal-strip { flex-wrap:wrap; } .goal-strip button { min-height:40px; } .goal-strip .goal-copy { flex-basis:60%; } }
   body.motion-paused *, body.motion-paused *::before, body.motion-paused *::after { animation:none !important; transition:none !important; }
   @container (max-width:640px) {
     .graph-body { grid-template-columns:minmax(0,1fr); gap:0; }
@@ -684,6 +710,7 @@
   <span class="tb-meta" id="as-of">as of —</span>
   <button type="button" class="kbd hide-phone" id="palette-btn" aria-label="Command palette">⌘K</button>
   <button type="button" class="iconbtn" id="search-btn" aria-label="Command palette"></button>
+  <button type="button" class="help-btn" id="help-btn" aria-label="Help and commands" title="Help and commands">?</button>
 </header>
 
 <div class="main" id="main">
@@ -732,17 +759,18 @@
     </div>
 
     <section class="composer" aria-label="Composer">
+      <div class="goal-strip" id="goal-strip" hidden><button class="goal-copy" type="button" id="goal-open"><div class="goal-title" id="goal-title"></div><div class="goal-meta" id="goal-meta"></div></button><button class="btn secondary" type="button" id="goal-toggle">Pause</button></div>
       <div class="cbox" id="cbox">
         <form class="box" id="composer-form">
           <textarea id="composer-input" rows="1" aria-label="Message the orchestrator" placeholder="Message the orchestrator…"></textarea>
           <div class="tools">
-            <button type="button" class="slash hide-phone" id="slash-hint" title="Delegate directly">/delegate</button>
+            <button type="button" class="slash hide-phone" id="slash-hint" title="Browse commands">/ commands</button>
             <button type="button" class="dotsbtn" id="composer-more" aria-label="More actions"></button>
             <button type="submit" class="btn send-text" id="send-btn">Send</button>
             <button type="submit" class="btn icon" id="send-icon" aria-label="Send"></button>
           </div>
         </form>
-        <div class="slashrow" id="slashrow" hidden><b>/delegate</b><span id="slash-preview">target [readonly|edit] prompt</span><span class="grow"></span><span><b>tab</b> target · <b>↵</b> open sheet</span></div>
+        <div class="slashrow" id="slashrow" role="listbox" aria-label="Commands" hidden></div>
         <div class="hint" id="composer-hint"><span class="keys">Enter to send · Shift+Enter for a newline</span></div>
       </div>
     </section>
@@ -1658,11 +1686,12 @@ function renderSpans(state, d) {
 const composerInput = $('composer-input'), sendBtn = $('send-btn'), sendIcon = $('send-icon'), cbox = $('cbox'), hint = $('composer-hint'), slashRow = $('slashrow');
 sendIcon.appendChild(icon('sendUp', 17)); $('composer-more').appendChild(icon('dots', 15));
 function autosize() { composerInput.style.height = 'auto'; composerInput.style.height = Math.min(180, composerInput.scrollHeight) + 'px'; }
-composerInput.addEventListener('input', () => { autosize(); updateSlash(); if (b409) { b409 = false; renderComposer(lastState, derived); } });
+composerInput.addEventListener('input', () => { autosize(); updateSlash(); if (b409) b409 = false; renderComposer(lastState, derived); });
 function renderComposer(state, d) {
   const o = (state && state.orchestrator) || {}; const busy = !!o.busy;
-  composerInput.disabled = busy; sendBtn.disabled = busy || !composerInput.value.trim(); sendIcon.disabled = busy;
-  composerInput.placeholder = busy ? 'Composer is disabled while a turn runs' : `Message ${nameFor('orchestrator')}…`;
+  const control = /^\s*\/[a-z?]/i.test(composerInput.value);
+  composerInput.disabled = false; sendBtn.disabled = (!control && busy) || !composerInput.value.trim(); sendIcon.disabled = sendBtn.disabled;
+  composerInput.placeholder = busy ? 'Work is running. Type / for controls…' : `Message ${nameFor('orchestrator')} or type /…`;
   cbox.classList.toggle('busy', busy); cbox.classList.toggle('b409', b409);
   hint.textContent = ''; hint.className = 'hint';
   if (b409) {
@@ -1674,16 +1703,44 @@ function renderComposer(state, d) {
     if (start) { s.dataset.since = start; s.dataset.prefix = `${nameFor('orchestrator')} is working · `; s.dataset.suffix = pend ? ` · ${pend} delegation${pend === 1 ? '' : 's'} pending` : ''; s.textContent = s.dataset.prefix + fmtElapsed(Date.now() + skewMs - Date.parse(start)) + s.dataset.suffix; }
     else s.textContent = `${nameFor('orchestrator')} is working`;
     hint.appendChild(s);
-    const stop = el('button', 'btn secondary', 'Stop'); stop.type = 'button'; stop.id = 'stop-turn'; stop.addEventListener('click', () => { stop.disabled = true; postJSON('/api/turn/' + encodeURIComponent(o.current_turn) + '/stop', {}).then(() => pollState(true)).catch((err) => { stop.disabled = false; toast('Could not stop turn', err.message, 'err'); }); }); hint.appendChild(stop);
+    const stop = el('button', 'btn secondary', 'Stop'); stop.type = 'button'; stop.id = 'stop-turn'; stop.addEventListener('click', () => { stop.disabled = true; runCommand('stop','').catch((err) => { stop.disabled = false; toast('Could not stop turn', err.message, 'err'); }); }); hint.appendChild(stop);
   } else hint.appendChild(el('span', 'keys', 'Enter to send · Shift+Enter for a newline'));
 }
+const COMMANDS = [
+  {name:'help', usage:'/help', detail:'How to use Harness and its commands'},
+  {name:'goal', usage:'/goal [objective | pause | resume | edit | clear]', detail:'Start or manage a persistent Codex goal'},
+  {name:'clear', usage:'/clear [name]', detail:'Fresh conversation and empty feed; history stays saved'},
+  {name:'new', usage:'/new [name]', detail:'Fresh conversation while keeping the feed visible'},
+  {name:'stop', usage:'/stop', detail:'Stop the current turn; pause a running goal'},
+  {name:'model', usage:'/model [model-id]', detail:'Choose the model for your next turn'},
+  {name:'effort', usage:'/effort [level]', detail:'Choose reasoning effort for the active model'},
+  {name:'settings', usage:'/settings', detail:'Agent, team, and device preferences'},
+  {name:'delegate', usage:'/delegate target [readonly|edit] prompt', detail:'Send a task directly to a worker'},
+  {name:'sessions', usage:'/sessions', detail:'Inspect sessions, stop work, or end a session'},
+  {name:'status', usage:'/status', detail:'Current model, workspace, and goal status'},
+  {name:'history', usage:'/history', detail:'Browse saved turns and export markdown'},
+  {name:'playbook', usage:'/playbook', detail:'WISDOM and your uploaded markdown instructions'},
+  {name:'team', usage:'/team', detail:'Choose worker roles and presets'},
+  {name:'theme', usage:'/theme [light|dark]', detail:'Change this device’s appearance'}
+];
+let slashIndex = 0, slashCandidates = [];
+function insertCommand(command) { composerInput.value = '/' + command.name + ' '; slashIndex = 0; closeOverlay(); composerInput.focus(); autosize(); updateSlash(); renderComposer(lastState, derived); }
 function updateSlash() {
-  const v = composerInput.value;
-  const m = /^\/delegate\b\s*(.*)$/s.exec(v);
-  if (!m) { slashRow.hidden = true; return; }
-  slashRow.hidden = false;
-  const p = parseSlash(m[1]);
-  $('slash-preview').textContent = `${p.to || 'target'} ${p.cls} ${p.prompt ? '“' + p.prompt.slice(0, 40) + (p.prompt.length > 40 ? '…' : '') + '”' : '“…”'}`;
+  const m = /^\s*\/([a-z-]*)(?:\s+([\s\S]*))?$/i.exec(composerInput.value);
+  slashRow.textContent = ''; slashCandidates = []; composerInput.removeAttribute('aria-activedescendant');
+  if (!m) { slashRow.hidden = true; composerInput.setAttribute('aria-expanded','false'); return; }
+  const name = m[1].toLowerCase(), exact = COMMANDS.find((c) => c.name === name);
+  slashCandidates = COMMANDS.filter((c) => c.name.startsWith(name)).slice(0,6);
+  slashIndex = Math.min(slashIndex, Math.max(0, slashCandidates.length - 1));
+  slashRow.hidden = false; composerInput.setAttribute('aria-controls','slashrow'); composerInput.setAttribute('aria-expanded','true');
+  if (!slashCandidates.length) { slashRow.appendChild(el('div','command-note','No matching command. /help lists supported commands. Use // to send literal slash text.')); return; }
+  slashCandidates.forEach((c,i) => {
+    const b = el('button','command-row' + (i === slashIndex ? ' on' : '')); b.type = 'button'; b.id = 'slash-option-' + c.name; b.setAttribute('role','option'); b.setAttribute('aria-selected',String(i===slashIndex));
+    b.append(el('code','','/' + c.name),el('span','',exact ? c.usage : c.detail));
+    b.addEventListener('click', () => insertCommand(c)); slashRow.appendChild(b);
+  });
+  composerInput.setAttribute('aria-activedescendant','slash-option-' + slashCandidates[slashIndex].name);
+  slashRow.appendChild(el('div','command-note', exact ? exact.detail + ' · Enter to run' : '↑↓ choose · Tab to insert · /help for all commands'));
 }
 function knownTargets() {
   const t = new Set((lastState && lastState.orchestrator.options.targets) || ['claude', 'codex']);
@@ -1701,20 +1758,31 @@ function parseSlash(rest) {
   return { to, cls, prompt: toks.join(' ').replace(/^["“]|["”]$/g, '') };
 }
 composerInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Tab' && !slashRow.hidden) { e.preventDefault(); const p = parseSlash(composerInput.value.replace(/^\/delegate\b\s*/, '')); const t = p.to || knownTargets()[1]; composerInput.value = `/delegate ${t} ${p.cls} ${p.prompt}`.trimEnd() + ' '; updateSlash(); return; }
+  if (!slashRow.hidden && e.key === 'Escape') { e.preventDefault(); slashRow.hidden = true; composerInput.setAttribute('aria-expanded','false'); return; }
+  if (!slashRow.hidden && slashCandidates.length && ['ArrowUp','ArrowDown'].includes(e.key)) { e.preventDefault(); slashIndex = (slashIndex + (e.key === 'ArrowDown' ? 1 : slashCandidates.length - 1)) % slashCandidates.length; updateSlash(); return; }
+  if (!slashRow.hidden && slashCandidates.length && e.key === 'Tab') { e.preventDefault(); insertCommand(slashCandidates[slashIndex]); return; }
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComposer(); }
 });
 $('composer-form').addEventListener('submit', (e) => { e.preventDefault(); submitComposer(); });
-$('slash-hint').addEventListener('click', () => openDelegate({}));
+$('slash-hint').addEventListener('click', () => { composerInput.value = '/'; composerInput.focus(); updateSlash(); });
 $('composer-more').addEventListener('click', () => openDelegate({}));
-function submitComposer() {
+async function submitComposer() {
   const text = composerInput.value;
   if (!text.trim()) return;
-  const sm = /^\/delegate\b\s*(.*)$/s.exec(text);
-  if (sm) { const p = parseSlash(sm[1]); openDelegate({ to: p.to, cls: p.cls, prompt: p.prompt }); return; }
+  const command = /^\s*\/([a-z][\w-]*)(?:\s+([\s\S]*))?$/i.exec(text);
+  if (command) {
+    const name = command[1].toLowerCase(), args = (command[2] || '').trim();
+    if (!COMMANDS.some((c) => c.name === name)) { toast('Command unavailable here', 'Use /help for supported commands. Terminal-only commands are not sent as prompts.', 'neutral'); return; }
+    slashRow.hidden = true;
+    try { const clear = await runCommand(name,args); if (clear !== false && composerInput.value === text) { composerInput.value = ''; autosize(); } }
+    catch (e) { toast('Command could not run', e.message, 'err'); }
+    renderComposer(lastState,derived); return;
+  }
+  if (text.trim() === '/') { openHelp('commands'); return; }
+  if (lastState && lastState.orchestrator.busy) { b409 = true; renderComposer(lastState,derived); return; }
   composerInput.disabled = true; sendBtn.disabled = true;
   postJSON('/api/say', { text }).then(() => { composerInput.value = ''; autosize(); b409 = false; slashRow.hidden = true; pollState(true); })
-    .catch((err) => { if (err.status === 409) b409 = true; else toast('Failed to send', err.message, 'err'); })
+    .catch((err) => { if (err.status === 409 && lastState && lastState.orchestrator.busy) b409 = true; else toast('Failed to send', err.message, 'err'); })
     .then(() => { renderComposer(lastState, derived); if (!(lastState && lastState.orchestrator && lastState.orchestrator.busy)) composerInput.focus(); });
 }
 
@@ -1833,6 +1901,8 @@ function palActions() {
   const o = lastState && lastState.orchestrator || {}; const other = o.vendor === 'claude' ? 'codex' : 'claude'; const k = isMac ? '⌘' : 'Ctrl+';
   if (palMode === 'effort') { const opt = (o.options || {})[o.vendor] || {}; const eff = (opt.model_efforts || {})[o.model] || opt.efforts || []; return eff.map((e) => ({ group: `Effort · ${o.vendor}`, icon: 'lines', label: e, right: e === o.effort ? 'current' : '', run: () => setOrch({ effort: e }, `effort → ${e}`) })); }
   return [
+    { group: 'Workspace', icon: 'lines', label: 'Help & commands…', right: '/help', run: () => { openHelp(); return true; } },
+    { group: 'Work', icon: 'circ', label: 'Goal…', right: '/goal', run: () => { openGoal(); return true; } },
     { group: 'Workspace', icon: 'lines', label: 'Session setup…', run: () => { openSettings(); return true; } },
     { group: 'Workspace', icon: 'rect', label: 'Playbook library…', right: 'WISDOM or your own markdown', run: () => { openPlaybooks(); return true; } },
     { group: 'Workspace', icon: 'sun', label: 'Preferences & alerts…', run: () => { openSettings('preferences'); return true; } },
@@ -1941,12 +2011,16 @@ function setOffline(off, err) {
 function applyState(state) {
   const now = Date.now(); skewMs = (Date.parse(state.as_of) || now) - now;
   // Background notifications come from the durable server outbox, even when this page is closed.
+  const floor = (state.orchestrator || {}).feed_offset || 0;
+  if (lastState && floor < (lastState.orchestrator.feed_offset || 0)) return false;
+  if (floor) state = {...state, messages:(state.messages || []).filter((m) => Number.isFinite(m.offset) && m.offset >= floor)};
   lastState = state; agentsById = new Map((state.agents || []).map((a) => [a.id, a]));
   const msgs = state.messages || []; const newMsgs = [];
   for (const m of msgs) if (!seenIds.has(m.id)) { seenIds.add(m.id); if (initialized) newMsgs.push(m); }
   derived = derive(state);
   for (const m of newMsgs) if (m.kind === 'receipt' && String(m.from).startsWith('worker:')) justDone.set(m.from, { at: now, ok: ((m.meta || {}).root_code) === 'ok', dur: (m.meta || {}).duration_ms });
   renderTopbar(state); renderRoster(state, derived); renderSystem(state); renderGraph(state, derived); renderExchanges(state, newMsgs); renderFeed(state, derived, newMsgs); renderComposer(state, derived); renderSpans(state, derived);
+  renderGoal(state.goal);
   if (state.today) $('today-stats').textContent = `Today · ${state.today.turns} turns · ${state.today.delegations} delegations · ${fmtTok(state.today.tokens)} tokens · ${state.today.ok_rate == null ? '—' : Math.round(state.today.ok_rate * 100) + '%'} ok · median ${fmtDur(state.today.p50_duration_ms)}`;
   if (statsFresh && lastStats) renderStats(lastStats);
   if (initialized && newMsgs.length) enqueueHops(newMsgs);
@@ -1960,7 +2034,7 @@ function pollState(immediate) {
   statePolling = true; const revision = liveRevision;
   const run = () => apiFetch('/api/state', { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error(`state ${r.status}`); return r.json(); }).then((data) => {
     lastContact = Date.now(); setOffline(false);
-    if (lastState && revision !== liveRevision) { const ids = new Set(data.messages.map(m => m.id)); data.messages = [...data.messages, ...lastState.messages.filter(m => !ids.has(m.id))].slice(-300); }
+    if (lastState && revision !== liveRevision && (data.orchestrator.feed_offset || 0) === (lastState.orchestrator.feed_offset || 0)) { const ids = new Set(data.messages.map(m => m.id)); data.messages = [...data.messages, ...lastState.messages.filter(m => !ids.has(m.id))].slice(-300); }
     const changed = applyState(data);
     const busy = !!(data.orchestrator && data.orchestrator.busy) || derived.pendingByWorker.size > 0;
     statePollTimer = setTimeout(pollState, busy || changed ? 2000 : 8000);
@@ -1975,7 +2049,6 @@ function pollStats() {
 $('retry-btn').addEventListener('click', () => { pollState(true); pollStats(); });
 $('loopback').textContent = ''; $('loopback').appendChild(icon('lock', 10)); $('loopback').appendChild(document.createTextNode(location.protocol === 'https:' ? 'Private connection' : 'Local connection'));
 window.addEventListener('resize', () => { fitStage(); });
-composerInput.addEventListener('input', () => { sendBtn.disabled = !composerInput.value.trim() || !!(lastState && lastState.orchestrator && lastState.orchestrator.busy); });
 
 /* ================= v2 controls ================= */
 let statePolling = false, pollAgain = false, liveRevision = 0;
@@ -2111,6 +2184,131 @@ $('team-delete').addEventListener('click', () => removeDocument('/api/teams/' + 
 $('feed-search').addEventListener('input', () => { feedQuery = $('feed-search').value.trim().toLowerCase(); if (lastState) renderFeed(lastState, derived, []); });
 function drawer(title) { closeOverlay(); $('v2-title').textContent = title; $('v2-content').textContent = ''; showOverlay('v2-drawer'); $('v2-close').focus(); return $('v2-content'); }
 $('v2-close').addEventListener('click', closeOverlay);
+/* Commands are local controls. Only normal prompts enter the model turn path. */
+async function refreshCommandState() { liveRevision++; const state = await getJSON('/api/state'); applyState(state); }
+async function runCommand(name, args) {
+  const o = lastState && lastState.orchestrator || {};
+  if (name === 'help') { openHelp('commands'); return; }
+  if (name === 'settings' || name === 'team') { openSettings(name === 'team' ? 'team' : 'agent'); return; }
+  if (name === 'playbook') { openPlaybooks(); return; }
+  if (name === 'history') { openHistory(); return; }
+  if (name === 'sessions') { openSessions(); return; }
+  if (name === 'delegate') { openDelegate(parseSlash(args)); return false; }
+  if (name === 'theme') { if (!args) toggleTheme(); else if (['light','dark'].includes(args)) applyTheme(args); else throw new Error('Use /theme light or /theme dark.'); return; }
+  if (name === 'status') {
+    const box = drawer('Workspace status');
+    for (const [label,value] of [['Agent',o.name],['Model',o.vendor + ' · ' + o.model],['Effort',o.effort],['Working directory',o.cwd],['State',o.busy ? 'Working' : 'Idle'],['Goal',goalSummary(lastState && lastState.goal)]]) {
+      const row = el('div','v2-row'); row.append(el('span','',label),el('span','mono',value || '—')); box.appendChild(row);
+    } return;
+  }
+  if (name === 'goal') {
+    if (!args || args === 'edit') { await openGoal(args === 'edit'); return; }
+    const edit = /^edit\s+([\s\S]+)$/.exec(args);
+    const action = ['pause','resume','clear'].includes(args) ? args : edit ? 'edit' : 'set';
+    await postJSON('/api/goal', {action, ...(['set','edit'].includes(action) ? {objective:edit ? edit[1] : args} : {})});
+    await refreshCommandState(); toast(action === 'set' ? 'Goal started' : action === 'edit' ? 'Goal saved' : 'Goal ' + (action === 'pause' ? 'pausing' : action === 'resume' ? 'resumed' : 'cleared')); return;
+  }
+  if (name === 'clear' || name === 'new') {
+    await postJSON('/api/clear', {clear_view:name === 'clear', ...(args ? {name:args} : {})});
+    if (name === 'clear') { feedQuery = ''; $('feed-search').value = ''; selectedAgent = null; unread = 0; firstUnreadId = null; cardOpen.clear(); }
+    await refreshCommandState(); toast('Fresh conversation', name === 'clear' ? 'Feed cleared. Saved history is still available.' : 'Previous messages remain in the feed.'); return;
+  }
+  if (name === 'stop') {
+    if (lastState && lastState.goal && lastState.goal.running) await postJSON('/api/goal', {action:'pause'});
+    else if (o.busy && o.current_turn) await postJSON('/api/turn/' + encodeURIComponent(o.current_turn) + '/stop', {});
+    else { toast('No active turn', '', 'neutral'); return; }
+    await refreshCommandState(); return;
+  }
+  if (name === 'model' || name === 'effort') {
+    if (!args) { openSettings(); return; }
+    const opts = (o.options || {})[o.vendor] || {}, body = {};
+    if (name === 'model') { if (!(opts.models || []).includes(args)) throw new Error('Choose a model from /model, or change the provider in /settings.'); body.model = args; }
+    else {
+      const level = args === 'med' ? 'medium' : args;
+      if (!(opts.efforts || []).includes(level) || ((opts.model_efforts || {})[o.model] && !opts.model_efforts[o.model].includes(level))) throw new Error('Choose an available effort from /effort.');
+      body.effort = level;
+    }
+    await postJSON('/api/orchestrator',body); await refreshCommandState(); toast('Settings applied', name + ' → ' + Object.values(body)[0]);
+  }
+}
+function openHelp(tab = 'start') {
+  const box = drawer('Help & instructions'), tabs = el('div','help-tabs'), content = el('div');
+  box.append(tabs,content);
+  const render = (selected) => {
+    tabs.textContent = ''; content.textContent = '';
+    for (const [id,label] of [['start','Getting started'],['commands','Commands']]) {
+      const b = el('button','btn secondary' + (selected === id ? ' on' : ''),label); b.type = 'button'; b.setAttribute('aria-pressed',String(selected === id)); b.addEventListener('click',() => render(id)); tabs.appendChild(b);
+    }
+    if (selected === 'commands') {
+      content.appendChild(el('p','v2-meta','Type / in the composer to browse. Use ↑↓ and Tab to choose, then Enter to run. Tap a command below to insert it.'));
+      COMMANDS.forEach((c) => { const b = el('button','command-row'); b.type = 'button'; b.append(el('code','',c.usage),el('span','',c.detail)); b.addEventListener('click',() => insertCommand(c)); content.appendChild(b); });
+      content.appendChild(el('p','v2-meta','These commands run in Harness. Other terminal commands, including /compact, /permissions, /mcp, and native chat /resume, are not available here and are never sent as prompts. Start with // to send literal slash text.'));
+      return;
+    }
+    for (const [title,body] of [
+      ['1 · Set your workspace','Open the model pill at the top. Choose Codex or Claude, a model, effort, and the working directory on your desktop. Changes apply to the next turn.'],
+      ['2 · Start a conversation','Describe what you want in the composer. Enter sends; Shift+Enter adds a line. The graph shows real exchanges between agents. Tap an exchange or a message to read more.'],
+      ['3 · Keep a goal moving','With Codex selected, type /goal followed by an objective and a clear finish condition. Harness continues turns until the native goal completes, becomes blocked, reaches a limit, or you stop it. Use /goal to inspect usage, pause, resume, edit, or clear it. An optional token budget is available in the goal form. After a server restart, resume explicitly.'],
+      ['Pause, stop, and start fresh','Stop cancels the active turn and its workers; a running goal pauses too. It does not undo changes already made. /clear starts a fresh conversation and clears the feed. /new starts fresh but keeps the feed. Both keep saved history and require current work to finish or stop first.'],
+      ['Your instructions and team','WISDOM is the default playbook. Open Playbooks at the top, or /playbook, to upload your own .md file up to 256 KB and select it explicitly. /team sets worker roles. /delegate opens a direct worker task; review it before sending.'],
+      ['Sessions and saved work','Sessions shows active work and lets you stop or end sessions. History keeps past turns and markdown exports. Open a worker receipt to send a follow-up in that worker’s session. Ending a session keeps its saved history.'],
+      ['From your phone','Keep Tailscale connected and your desktop awake. You can close the phone app while work continues on the desktop. Preferences contains background alerts, a test notification, theme, and motion settings.'],
+      ['Quick controls','Type /help for commands, or use the ? button anytime. Ctrl/Cmd+K opens the command palette. Escape closes a panel. Model effort support is learned during normal use; no probe calls are made.']
+    ]) { const s = el('section','help-section'); s.append(el('h3','',title),el('p','',body)); content.appendChild(s); }
+    const commands = el('button','btn','Browse commands'); commands.addEventListener('click',() => render('commands')); content.appendChild(commands);
+  }; render(tab);
+}
+$('help-btn').addEventListener('click',() => openHelp());
+function goalSummary(view) {
+  const g = view && view.goal;
+  if (!g) return 'No goal';
+  const status = view.pending ? (view.pending === 'clear' ? 'Clearing' : 'Pausing') : view.running ? 'Working' : g.execution_error ? 'Needs attention' : g.status === 'active' ? 'Ready to resume' : g.status;
+  return status + ' · ' + fmtTok(g.tokensUsed || 0) + (g.tokenBudget ? ' / ' + fmtTok(g.tokenBudget) : '') + ' tokens';
+}
+function renderGoal(view) {
+  const g = view && view.goal; $('goal-strip').hidden = !g;
+  if (g) {
+    $('goal-title').textContent = g.objective; $('goal-meta').textContent = goalSummary(view);
+    $('goal-toggle').textContent = view.running ? 'Pause' : 'Open'; $('goal-toggle').disabled = !!view.pending;
+  }
+  const status = $('goal-detail-status'); if (status) status.textContent = goalSummary(view);
+  // Update control availability without touching a draft objective.
+  document.querySelectorAll('[data-goal-action]').forEach((b) => { const a = b.dataset.goalAction; b.disabled = !!(view && view.pending) || (a === 'pause' ? !(view && view.running) : a === 'resume' || a === 'edit' ? !!(view && view.running) : false); });
+}
+$('goal-open').addEventListener('click',() => openGoal());
+$('goal-toggle').addEventListener('click',async () => {
+  if (!(lastState && lastState.goal && lastState.goal.running)) { openGoal(); return; }
+  try { await postJSON('/api/goal',{action:'pause'}); await refreshCommandState(); } catch(e) { toast('Could not pause goal',e.message,'err'); }
+});
+async function openGoal(edit = false) {
+  const box = drawer('Goal'); box.appendChild(el('p','','Loading goal…'));
+  try {
+    const view = await getJSON('/api/goal');
+    if (openOverlay !== 'v2-drawer' || $('v2-title').textContent !== 'Goal') return;
+    box.textContent = ''; if (lastState) lastState.goal = view; renderGoal(view);
+    if (!view.supported) { box.appendChild(el('p','',view.message)); const choose = el('button','btn','Choose Codex'); choose.addEventListener('click',() => openSettings()); box.appendChild(choose); return; }
+    const g = view.goal, status = el('p','v2-meta',goalSummary(view)); status.id = 'goal-detail-status'; box.appendChild(status);
+    if (g) { box.appendChild(el('p','',g.objective)); if (g.execution_error) box.appendChild(el('p','v2-meta',g.execution_error)); }
+    const action = async (name,body = {}) => { await postJSON('/api/goal',{action:name,...body}); await refreshCommandState(); await openGoal(); };
+    if (g) {
+      const buttons = el('div','help-tabs');
+      for (const [name,label] of [['pause','Pause'],['resume','Resume'],['edit','Edit'],['clear','Clear goal']]) {
+        const b = el('button','btn secondary',label); b.type = 'button'; b.dataset.goalAction = name;
+        b.addEventListener('click',async () => { if (name === 'edit') { openGoal(true); return; } b.disabled = true; try { await action(name); } catch(e) { toast('Goal action failed',e.message,'err'); renderGoal(lastState.goal); } }); buttons.appendChild(b);
+      } box.appendChild(buttons);
+    }
+    if (!g || edit) {
+      const form = el('form','goal-form'), objective = el('textarea','input'), budget = el('input','input'), submit = el('button','btn',g ? 'Save paused goal' : 'Start goal');
+      objective.id = 'goal-objective'; objective.maxLength = 4000; objective.required = true; objective.rows = 5; objective.value = g ? g.objective : ''; objective.placeholder = 'What should be achieved, and how will we know it is done?';
+      budget.id = 'goal-budget'; budget.type = 'number'; budget.min = '1'; budget.step = '1'; budget.placeholder = 'No token budget'; budget.value = g && g.tokenBudget || '';
+      const label = el('label','','Objective'); label.htmlFor = objective.id; const cap = el('label','','Token budget · optional'); cap.htmlFor = budget.id;
+      submit.type = 'submit'; submit.disabled = !!view.running;
+      form.append(label,objective,cap,budget,el('p','v2-meta',g ? 'Pause before editing. Saving resets goal accounting; resume when ready.' : 'Uses the current Codex session and its existing permissions. Work continues on your desktop.'),submit);
+      form.addEventListener('submit',async (e) => { e.preventDefault(); submit.disabled = true; try { await action(g ? 'edit' : 'set',{objective:objective.value,token_budget:budget.value ? Number(budget.value) : null}); } catch(err) { toast('Could not save goal',err.message,'err'); submit.disabled = false; } }); box.appendChild(form);
+    } else box.appendChild(el('p','v2-meta','Pause before editing the objective or budget. Clear removes the goal while keeping the conversation and history.'));
+    renderGoal(view);
+  } catch (e) { box.textContent = e.message; }
+}
 function receiptButton(id) { const b = el('button', 'btn secondary', 'View receipt'); b.type = 'button'; b.addEventListener('click', () => openReceipt(id)); return b; }
 async function openReceipt(id) {
   const box = drawer('Receipt'); box.appendChild(el('p', '', 'Loading…'));

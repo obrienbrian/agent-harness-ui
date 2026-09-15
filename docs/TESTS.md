@@ -181,3 +181,35 @@ computer. This device witness is not a guarantee under every network/OS conditio
 
 The actual Android alert-delivery witness is PHONE-01 above; this refresh was inspected in Chromium
 emulation and on the private served page. Reload the installed app to load the new HTML.
+
+## UI-06 Help, commands and goal control — 2026-09-15
+
+Criteria: HELP-GOAL-01 in core and UI 0.6.0 additions in DESIGN-SPEC/UI-CONTRACT.
+
+- `python3 -m unittest tests.test_ui` — **15 passed**. New checks prove unknown commands cause no
+  vendor invocation, `//` preserves a literal slash, reset rejects busy work, `/new` retains the feed,
+  `/clear` retains durable turn history but empties state messages, malformed clear flags are rejected,
+  and Claude goal control is explicitly unavailable. Existing auth/Origin/CSP, stop, SSE, and receipts
+  remain green.
+- `python3 -m unittest tests.test_page_smoke` — **4 passed**. New real Chromium interaction drives
+  Help, keyboard suggestions, unsupported commands, the goal form/budget, busy pause/clear, edit with
+  blank budget, resume/stop/clear, model/effort/theme, and new/clear. No command is sent to `/api/say`;
+  the literal escape is. Simulated old polls and below-boundary events cannot restore cleared messages.
+  Layouts cover 320/390/1440px; existing workspace suite also covers 1000px. No JS exceptions.
+- Core suites — **60 passed** (40 regression, 7 v2, 5 worker lifecycle, 8 native goal). Installed
+  Codex 0.154.0 executes against a localhost fake Responses provider in isolated CODEX_HOME; its real
+  native goal tool marks completion after a continuation. No paid model requests or user credentials.
+- Author review: command dispatch never forwards unsupported commands; metadata methods are allowlisted;
+  native states/accounting are retained; no goal resumes implicitly after server restart. Same current
+  session permission scope and WISDOM selection. No new frontend dependency or periodic goal RPC.
+- Deployed core 0.4.0 / UI 0.6.0 after verifying no active turn or workers. Existing private HTTPS URL
+  loaded in Chromium at 390px: secure context, WISDOM, Help, slash suggestions, native goal metadata,
+  **zero POSTs and zero JS errors**. Push remained ready with 2 subscriptions, 0 pending/failed.
+- Inspected screenshots: `/tmp/harness-help-shots/phone-commands.png`, `phone-active-goal.png`,
+  `live-phone-help.png`, `live-phone-slash-menu.png`, `live-phone-goal-form.png`. Fixture images are
+  reproducible with `HARNESS_TEST_SCREENSHOTS=/tmp/harness-help-shots python3 -m unittest tests.test_page_smoke`.
+- Limit: no paid real-model task was launched for release verification; the live check reads metadata
+  and opens controls only. Native goals are Codex-only; unsupported terminal commands are documented.
+
+Rollback: revert this release and core 0.4.0 together to UI 0.5.0/core 0.3.0, then restart the idle user
+service. Durable history, push subscriptions and uploaded playbooks stay in their existing data dirs.

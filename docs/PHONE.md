@@ -90,3 +90,33 @@ one device's notifications, use **Disable alerts**.
 
 Sources: [Tailscale Serve](https://tailscale.com/docs/features/tailscale-serve),
 [Web Push implementation](https://github.com/web-push-libs/pywebpush).
+
+## Help and quick commands
+
+Tap **?** in the top bar for instructions. Type `/` in the composer for suggestions, or `/help` for the
+complete supported list. Tap a suggestion to insert it, then Send to run. On a keyboard, ↑↓ selects,
+Tab inserts, Enter runs, and Shift+Enter adds a line.
+
+| Command | Behavior |
+|---|---|
+| `/goal Fix the failing tests and verify they pass` | With Codex selected, persist the goal and keep working toward it |
+| `/goal` | Open goal details, optional token budget, and controls |
+| `/goal pause`, `/goal resume`, `/goal clear` | Pause, continue, or remove the goal; preserve the conversation/history |
+| `/goal edit` | Edit a paused goal, including its budget; resume when ready |
+| `/stop` | Stop active work; pause a managed goal |
+| `/clear [name]` | Fresh conversation and empty feed, keeping saved history |
+| `/new [name]` | Fresh conversation with the existing feed visible |
+| `/model`, `/effort` | Choose settings; a model ID or effort can follow the command |
+| `/playbook`, `/team`, `/settings` | Open instructions, team, or preferences |
+| `/sessions`, `/history`, `/status` | Inspect work, saved turns, or current settings |
+| `/delegate target [readonly\|edit] prompt` | Prepare a direct worker task for review and sending |
+| `/theme [light\|dark]` | Change this device's appearance |
+
+Goal work continues on the desktop with the app closed. The bar above the composer shows objective,
+native status and usage. Completion, blocking/limits, errors, and Stop end continuation. A desktop
+service restart requires explicit goal resume. Goal mode is Codex-only and does not expand permissions.
+Clear/new require current work to stop first. All resets retain saved history and completed file edits.
+
+Only the documented commands are supported here. Unknown terminal commands stay out of model prompts;
+use `//` at the start for literal slash text. Native CLI chat `/resume` is terminal-only; worker follow-up
+resume is available inside a saved receipt.
