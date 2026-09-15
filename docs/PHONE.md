@@ -8,12 +8,26 @@ awake, and connected. Closing the phone app does not cancel work.
 1. Connect Tailscale on the phone and computer using the authorized account.
 2. Open the computer's private HTTPS address in Chrome.
 3. Chrome menu → **Add to Home screen / Install app**. Open Harness from the new icon.
-4. Tap the model/session pill → **Enable background alerts** → allow notifications.
+4. Tap the model/session pill → **Preferences** → **Enable background alerts** → allow notifications.
 5. Tap **Send test alert**, return to the home screen, and check that it arrives.
 
 Notifications contain generic completion/attention text, never prompts, results, paths, or credentials.
 Tapping one opens the saved turn/receipt. Tailscale must be connected to open the app; delivery uses the
 browser's push service. **Disable alerts** unsubscribes this device.
+
+The model/session pill opens **Session setup**: Agent, Team, and Preferences tabs. Alerts, theme, and
+the optional traffic-animation switch live in Preferences. Appearance choices apply immediately to
+this device; Agent/Team changes use **Save changes**.
+
+The **WISDOM** button in the top bar opens the separate **Playbook library**. WISDOM is the built-in
+default. Use **Choose markdown** on your phone, or drop a `.md` file on desktop (UTF-8, up to 256 KB).
+Uploading stores the document; **Use playbook** selects it and starts a fresh conversation on the next
+turn, preserving history. Wait for an active turn to finish before switching. The selected playbook's
+name replaces WISDOM in the top bar. WISDOM remains pinned first in the library for easy return.
+
+**Latest exchanges** shows actual agent messages, with brief arrival motion. Tap a card for its full
+feed entry. The graph shows three recent cards on a wide screen and the newest one on a phone. It
+respects reduced motion and stops visual animations while the app is hidden.
 
 **Sessions** opens the control drawer. Stop a harness turn, cancel one worker, or end an idle orchestrator
 session. Other Claude/Codex sessions appear separately with their directory. External sessions require

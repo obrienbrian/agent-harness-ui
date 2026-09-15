@@ -46,6 +46,8 @@ class Fixture:
     def __init__(self, scenario: str, advance: bool, many: bool):
         self.scenario, self.advance, self.many = scenario, advance, many
         self.calls = 0
+        self.orch_updates = {}
+        self.uploads = []
 
     @property
     def busy(self) -> bool:
@@ -113,11 +115,11 @@ class Fixture:
             "as_of": iso(0), "version": "fixture", "core_version": "fixture",
             "orchestrator": {"vendor": "claude", "model": "fable", "effort": "high", "name": "Orchestrator", "session_ref": {"kind": "claude_session", "id": "86b8a730-fixture"},
                              "cwd": "/home/user/projects", "busy": self.busy, "turns": 4 if self.busy else 3, "current_turn": "t_a3c7cc33" if self.busy else None,
-                             "playbook": "review-guide", "team": {"mode": "suggest", "roles": [{"label": "Verifier", "to": "claude", "model": "haiku", "effort": "high", "class": "readonly", "brief": "Check evidence."}]},
+                             "playbook": "wisdom", "team": {"mode": "suggest", "roles": [{"label": "Verifier", "to": "claude", "model": "haiku", "effort": "high", "class": "readonly", "brief": "Check evidence."}]},
                              "options": {"targets": ["claude", "codex"], "claude": {"models": ["fable", "opus", "sonnet", "haiku"], "efforts": ["low", "medium", "high", "xhigh", "max"]},
-                                         "codex": {"models": ["gpt-5.6-sol", "gpt-6-astra", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5", "gpt-5.3-codex-spark"], "efforts": ["minimal", "low", "medium", "high", "xhigh", "max"], "model_efforts": {"gpt-5.6-sol": ["low", "medium", "high", "xhigh"]}}}},
+                                         "codex": {"models": ["gpt-5.6-sol", "gpt-6-astra", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5", "gpt-5.3-codex-spark"], "efforts": ["minimal", "low", "medium", "high", "xhigh", "max"], "model_efforts": {"gpt-5.6-sol": ["low", "medium", "high", "xhigh"]}}}, **self.orch_updates},
             "agents": agents + [{"id": "worker:claude:haiku", "name": "Verifier", "vendor": "claude", "model": "haiku", "role": "worker", "status": "planned", "ghost": True, "messages": 0, "last_seen": None}], "messages": ms,
-            "playbooks": [{"slug":"wisdom","name":"WISDOM","builtin":True},{"slug":"none","name":"None","builtin":True},{"slug":"review-guide","name":"Review guide","summary":"Review evidence before changing code","sha256":"a"*64,"bytes":2048,"uploaded_at":iso(500)}],
+            "playbooks": [{"slug":"wisdom","name":"WISDOM","builtin":True},{"slug":"none","name":"None","builtin":True},{"slug":"review-guide","name":"Review guide","summary":"Review evidence before changing code","sha256":"a"*64,"bytes":2048,"uploaded_at":iso(500)}, *self.uploads],
             "teams": [{"slug":"solo","name":"Solo","builtin":True,"team":{"mode":"suggest","roles":[]}}],
             "today": {"turns":4,"delegations":8,"tokens":12750,"ok_rate":.875,"p50_duration_ms":4000},
             "workers": [{"id":"dlg_active", "to":"claude", "model":"sonnet", "label":"Skeptic", "cwd":"/home/user/projects", "status":"running", "turn_id":"t_a3c7cc33"}] if self.busy else [],
@@ -166,14 +168,26 @@ def make_handler(fx: Fixture):
                 return self._json(200, fx.stats())
             if p == '/api/push':
                 return self._json(200, {'available':False, 'error':'fixture does not send notifications'})
+            if p in ('/api/playbooks', '/api/teams'):
+                key = p.rsplit('/', 1)[1]
+                return self._json(200, {key: fx.state()[key]})
             self._json(404, {"error": "not found"})
 
         def do_POST(self):  # noqa: N802
-            n = int(self.headers.get("Content-Length") or 0); self.rfile.read(n)
+            n = int(self.headers.get("Content-Length") or 0); body = json.loads(self.rfile.read(n) or b'{}')
             if self.path == "/api/say":
                 return self._json(409, {"error": "busy"}) if fx.busy else self._json(202, {"turn_id": "t_new", "status": "started"})
             if self.path == "/api/orchestrator":
+                if fx.busy:
+                    return self._json(409, {'error':'busy'})
+                fx.orch_updates.update(body)
                 return self._json(200, fx.state()["orchestrator"])
+            if self.path == '/api/playbooks':
+                import hashlib
+                content = body['content'].encode()
+                row = {'slug':'uploaded-guide', 'name':body['name'], 'summary':'Uploaded test instructions', 'sha256':hashlib.sha256(content).hexdigest(), 'bytes':len(content)}
+                fx.uploads.append(row)
+                return self._json(201, row)
             if self.path == "/api/delegate":
                 return self._json(202, {"id": "dlg_new", "status": "started"})
             if self.path == '/api/delegate/dlg_active/cancel':

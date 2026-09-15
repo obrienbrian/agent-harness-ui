@@ -1,3 +1,22 @@
+# Agent Harness UI 0.5.0
+
+Released locally on 2026-09-15. Requires Agent Harness core 0.3.0.
+
+- **Live exchanges:** real message excerpts beside the agent graph, brief arrival animations, and
+  click-through to the full feed entry. History loads quietly; new events drive the motion.
+- **Session setup:** Agent, Team, and Preferences tabs replace the long popover. Compact model picker,
+  keyboard navigation, contained scrolling, and a persistent save footer on desktop and phone.
+- **Playbook library:** a dedicated top-bar button, WISDOM pinned as the built-in default, markdown
+  drag-and-drop or file selection, and a separate activation step. Your running WISDOM selection stays intact.
+- **Alert layout fix:** enabled status is a badge; Test and Disable use buttons that fit their text.
+- **Lightweight motion:** three message cards, at most six active and six queued comets, no new polling,
+  model calls, assets, or dependencies. Hidden tabs and reduced motion suppress animation; Preferences
+  also offers a per-device toggle.
+
+Validated with the UI/API suite and Chromium interactions at 1440, 1000, 390, and 320 CSS pixels,
+including light/dark themes, subscribed-alert layout, markdown upload/activation, focus, burst traffic,
+and reduced motion. Existing session/worker controls remain covered. See [test evidence](TESTS.md).
+
 # Agent Harness UI 0.4.0
 
 Released and deployed locally on 2026-09-15. Requires Agent Harness core 0.3.0.

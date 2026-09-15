@@ -3,6 +3,29 @@
 Everything needed to build `harness_ui/index.html` without guessing. Artboards live in
 `Agent Harness UI.dc.html`; board ids (`1a`–`1j`) are referenced throughout.
 
+## Current workspace refresh — UI 0.5.0
+
+This section supersedes the original popover/graph geometry and motion limits below. The original
+artboards remain the visual lineage. The additive v2 API, Stop, sessions, and push contracts in
+UI-CONTRACT.md also supersede this document's original v1-only/no-Stop descriptions.
+
+Focused WISDOM route: reversible UI changes; one mutation owner; preserve the existing API, WISDOM
+default, saved history, and permission boundaries. Producer/consumer seam: existing state/SSE messages
+→ bounded graph cards, existing playbook endpoints → separate selection, existing push state → status
+and actions. No model calls, new dependencies, or polling for the redesign.
+
+| Surface / criterion | Design and proof |
+| --- | --- |
+| Graph feels active without fabricated chatter | Compact dotted map beside three real message excerpts. Arrival uses a 240ms opacity/translate animation; click opens the full feed entry. Unchanged polling preserves nodes; history does not replay. Browser checks initial state, HTTP advance, feed navigation, unchanged state, and a 100-message burst. |
+| Motion stays bounded | Four visible graph slots (overflow opens roster); desktop map 460×252, phone 390×150. Six active/six queued comets maximum. Hidden/collapsed views discard queued effects; reduced motion and device preference suppress animation. No new timer loop. Narrow graph containers show only the latest card. |
+| Session settings remain usable | 580px centered dialog, Agent/Team/Preferences tabs, compact native model select, scrollable body, persistent save footer; phone bottom sheet. Keyboard tabs, focus containment/return, Escape, light/dark, widths 1440/1000/390/320 checked in Chromium. |
+| WISDOM stays default; uploads require explicit selection | Dedicated top-bar playbook library; built-in WISDOM pinned first. Markdown file/drop input retains 256 KB/UTF-8/server secret validation. Upload stores; Use playbook switches only that setting. Busy UI holds selection. Browser verifies upload has no activation POST and unrelated Agent saves cannot overwrite playbook. Existing API proof covers actual injection and secret rejection. |
+| Subscribed alerts do not overflow | Preferences displays an Enabled badge plus separate Test/Disable controls. Buttons have automatic height and wrapping; browser checks subscribed-state control bounds on narrow screens. Existing push backend retained. |
+
+Plan: implement graph/menu/library → syntax/static checks → existing API and browser regressions plus
+new interaction/layout checks → inspect fixture renders → observe private deployment. Rollback: restore
+the preceding UI release and restart only when idle; no schema or persistent-data migration is involved.
+
 ## 0. Decisions
 
 | Question | Decision |

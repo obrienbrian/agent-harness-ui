@@ -531,6 +531,129 @@
   .btn:disabled, .seg button:disabled { opacity:.35; cursor:not-allowed; }
   #v2-auth { z-index:110; }
   @media(max-width:859px) { .v2-drawer { padding:16px; padding-bottom:calc(20px + env(safe-area-inset-bottom)); } .v2-row button, .v2-drawer button, #settings .btn, #settings .input:not([type="radio"]) { min-height:44px; } #set-playbooks label { min-height:44px; display:flex; align-items:center; gap:8px; } .v2-search { padding:5px 10px; } }
+  /* Workspace refresh: bounded conversation cards and focused setup panels. */
+  @keyframes exchange-arrive { from { opacity:0; transform:translateY(7px); } to { opacity:1; transform:translateY(0); } }
+  .topbar { min-height:56px; gap:12px; }
+  .pill { min-width:0; min-height:36px; border-radius:10px; }
+  .pill .name, .pill .cap { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pill::after { content:'⌄'; margin-left:6px; color:var(--ink-3); }
+  .library-btn { display:flex; align-items:center; gap:7px; min-height:36px; padding:5px 9px; border:1px solid var(--line-strong); border-radius:10px; color:var(--ink-2); font-size:12px; white-space:nowrap; max-width:240px; }
+  #playbook-current { overflow:hidden; text-overflow:ellipsis; }
+  .library-mark { display:grid; place-items:center; width:22px; height:22px; flex:none; background:var(--accent-soft); color:var(--accent); border-radius:6px; font-size:11px; font-weight:700; }
+  .library-caption { color:var(--ink-3); font-size:11px; }
+  .graph { container-type:inline-size; }
+  .graph-hd { height:40px; }
+  .graph-body { display:grid; grid-template-columns:minmax(0,1.15fr) minmax(240px,1fr); padding:0 16px 16px; align-items:center; gap:10px; }
+  .graph.collapsed .graph-body { display:none; }
+  .graph-map { min-width:0; overflow:hidden; border-radius:14px; background-image:radial-gradient(var(--line-strong) .7px, transparent .7px); background-size:18px 18px; }
+  .stage-box { width:calc(460px * var(--k)); height:calc(252px * var(--k)); margin:0 auto; }
+  .stage { width:460px; height:252px; }
+  .node.you { left:160px; }
+  .node.orch { left:204px; }
+  .node.orch .txt { max-width:166px; }
+  .node.orch .txt .cap { overflow:hidden; text-overflow:ellipsis; }
+  .node.worker, .node.more { top:136px; }
+  .node .chips { max-width:100%; }
+  .node .chip { overflow:hidden; text-overflow:ellipsis; }
+  .exchange { min-width:0; align-self:stretch; padding:4px 0; }
+  .exchange-heading { display:flex; align-items:center; gap:8px; justify-content:space-between; margin:0 3px 9px; }
+  .exchange-heading .caps { font-size:10px; }
+  .exchange-state { font:10px var(--mono); color:var(--ink-3); }
+  #exchange-list { display:flex; flex-direction:column; gap:7px; }
+  .exchange-card { display:block; width:100%; text-align:left; padding:9px 11px; border:1px solid var(--line-strong); border-left:2px solid oklch(var(--ag-l) var(--ag-c) var(--hue) / .6); border-radius:4px 12px 12px 12px; background:var(--panel); }
+  .exchange-card:hover { background:var(--raised); }
+  .exchange-card.arrive { animation:exchange-arrive 240ms ease-out both; }
+  .exchange-route { display:flex; align-items:center; gap:5px; font-size:10.5px; color:var(--ink-2); }
+  .exchange-route .route-names { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; flex:1; }
+  .exchange-route time { flex:none; color:var(--ink-3); font:9.5px var(--mono); }
+  .exchange-card p { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; margin:5px 0 0; color:var(--ink); font:12px/1.45 var(--font); }
+  .exchange-kind { color:oklch(var(--ag-il) var(--ag-ic) var(--hue)); font-size:10px; flex:none; }
+  .exchange-empty { color:var(--ink-3); font-size:12px; line-height:1.6; padding:25px 12px; }
+  .setup.popover { top:50%; left:50%; transform:translate(-50%,-50%); bottom:auto; width:580px; max-width:calc(100vw - 32px); max-height:min(800px,calc(100dvh - 48px)); display:flex; flex-direction:column; overflow:hidden; border-radius:20px; }
+  .setup-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:23px 24px 18px; flex:none; }
+  .setup-heading .caps { color:var(--accent); font-size:10px; margin-bottom:7px; }
+  .setup-heading h2 { font-size:22px; font-weight:600; letter-spacing:-.6px; margin:0; }
+  .close-btn { width:36px; height:36px; flex:none; display:grid; place-items:center; border:1px solid var(--line-strong); border-radius:50%; color:var(--ink-2); font-size:23px; }
+  .setup-tabs { display:flex; gap:4px; margin:0 24px; padding:4px; background:var(--sunk); border:1px solid var(--line); border-radius:12px; flex:none; }
+  .setup-tabs button { flex:1; min-height:38px; border-radius:8px; color:var(--ink-3); font-size:12px; font-weight:500; }
+  .setup-tabs button[aria-selected="true"] { color:var(--ink); background:var(--raised); box-shadow:0 1px 4px rgba(0,0,0,.1); }
+  .setup-scroll { overflow-y:auto; min-height:0; overscroll-behavior:contain; }
+  .setup-panel { display:flex; flex-direction:column; gap:18px; padding:20px 24px 24px; }
+  .panel-intro { margin:0; color:var(--ink-2); font-size:13px; line-height:1.6; }
+  .setup .input, .setup .seg button { min-height:42px; }
+  .setup .input { border-radius:10px; padding:10px 12px; }
+  .setup .model-select { font-size:14px; }
+  select.input { color-scheme:dark; }
+  :root[data-theme="light"] select.input { color-scheme:light; }
+  .setup .field .caps { font-size:10px; }
+  .setup .field .caps .opt { font-size:10px; }
+  .setup-footer { flex:none; display:flex; align-items:center; justify-content:space-between; gap:16px; border-top:1px solid var(--line); padding:16px 24px; background:var(--panel); }
+  .setup-footer > span { font-size:11px; color:var(--ink-3); line-height:1.5; max-width:280px; }
+  .setup .btn, .v2-drawer .btn, .notification-controls .btn { height:auto; min-height:40px; padding:9px 13px; line-height:1.4; white-space:normal; flex-shrink:0; }
+  .session-reset { display:flex; align-items:center; gap:12px; justify-content:space-between; border-top:1px solid var(--line); padding-top:18px; }
+  .session-reset strong, .preference-card strong { font-size:13px; font-weight:500; }
+  .session-reset p { font-size:11px; color:var(--ink-3); margin:5px 0 0; }
+  .preference-card { background:var(--panel); border:1px solid var(--line); padding:16px; border-radius:14px; }
+  .preference-heading { display:flex; align-items:center; flex-wrap:wrap; gap:8px; justify-content:space-between; }
+  .preference-card p, .preference-description { font-size:12px; color:var(--ink-3); line-height:1.6; margin:9px 0 14px; }
+  .status-tag { padding:4px 8px; background:var(--raised); border:1px solid var(--line-strong); border-radius:20px; color:var(--ink-2); font-size:10px; }
+  .status-tag.on { color:var(--accent); background:var(--accent-soft); border-color:var(--accent-line); }
+  .notification-controls { display:flex; flex-wrap:wrap; gap:8px; }
+  #notify-detail:empty { display:none; }
+  #theme-options { margin-top:12px; }
+  .motion-label { display:flex; align-items:center; justify-content:space-between; gap:16px; cursor:pointer; }
+  .preference-description { display:block; margin-bottom:0; }
+  .motion-label input { accent-color:var(--accent); width:20px; height:20px; flex:none; }
+  .playbook-cards { display:flex; flex-direction:column; gap:10px; }
+  .playbook-card { display:flex; align-items:center; gap:12px; padding:14px; border:1px solid var(--line-strong); border-radius:14px; background:var(--panel); }
+  .playbook-card.selected { border-color:var(--accent-line); background:var(--accent-soft); }
+  .playbook-pick { display:flex; align-items:center; flex:1; min-width:0; gap:12px; cursor:pointer; }
+  .playbook-pick input { accent-color:var(--accent); width:17px; height:17px; flex:none; }
+  .playbook-copy { min-width:0; }
+  .playbook-name { display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:14px; font-weight:500; overflow-wrap:anywhere; }
+  .playbook-description { color:var(--ink-2); font-size:12px; line-height:1.5; margin-top:5px; overflow-wrap:anywhere; }
+  .playbook-card .v2-meta { margin:6px 0 0; font-size:10px; }
+  .upload-zone { display:flex; align-items:center; flex-direction:column; gap:8px; padding:23px 15px; border:1px dashed var(--line-strong); border-radius:14px; text-align:center; }
+  .upload-zone.dragging { background:var(--accent-soft); border-color:var(--accent); }
+  .upload-symbol { font-size:24px; color:var(--accent); }
+  .upload-zone strong { font-size:13px; font-weight:500; }
+  .upload-zone > span:not(.upload-symbol) { font-size:11px; color:var(--ink-3); }
+  .upload-zone .btn { position:relative; margin-top:6px; overflow:hidden; cursor:pointer; }
+  .upload-zone input { position:absolute; inset:0; opacity:0; width:100%; cursor:pointer; }
+  .upload-zone .btn:focus-within { outline:2px solid var(--accent); outline-offset:3px; }
+  body.motion-paused *, body.motion-paused *::before, body.motion-paused *::after { animation:none !important; transition:none !important; }
+  @container (max-width:640px) {
+    .graph-body { grid-template-columns:minmax(0,1fr); gap:0; }
+    .exchange { padding-top:8px; }
+    .exchange-card:not(:last-child) { display:none; }
+    .exchange-heading { display:none; }
+  }
+  @media(max-width:1179px) { .library-caption, #as-of { display:none; } }
+  @media(max-width:859px) {
+    .topbar { gap:6px; padding:0 8px; }
+    .pill { min-height:40px; flex:1; }
+    .library-btn { max-width:126px; min-height:40px; padding:5px 7px; }
+    .library-mark { display:none; }
+    .topbar > .grow { display:none; }
+    .graph-body { padding:0 12px 12px; }
+    .graph.phone .stage-box { margin-bottom:0; }
+    .graph-foot { display:none !important; }
+    .graph-hd .status { font-size:10px; }
+    .setup.popover { top:auto; bottom:0; left:0; right:0; transform:none; width:100%; max-width:none; max-height:calc(100dvh - 16px); border-radius:22px 22px 0 0; border-bottom:0; }
+    .setup-heading { padding:20px 18px 15px; }
+    .setup-heading h2 { font-size:21px; }
+    .setup-tabs { margin:0 18px; }
+    .setup-tabs button, .setup .btn, .setup .input, .setup .seg button, .close-btn { min-height:44px; }
+    .close-btn { width:44px; }
+    .setup-panel { padding:18px; gap:16px; }
+    .setup-footer { padding:14px 18px calc(14px + env(safe-area-inset-bottom)); gap:10px; }
+    .setup-footer > span { font-size:10.5px; }
+    .setup .input { font-size:16px; }
+    .setup .input.mono { font-size:12px; }
+    .playbook-card { padding:12px; gap:8px; }
+    .playbook-card .btn { padding:8px; font-size:11px; }
+  }
+  @media(prefers-reduced-motion:reduce) { .exchange-card.arrive { animation:none; } }
 </style>
 </head>
 <body>
@@ -554,6 +677,7 @@
     <span class="cap" id="pill-cap"></span>
     <span class="st" id="pill-st" hidden>working</span>
   </button>
+  <button type="button" class="library-btn" id="playbooks-btn" aria-haspopup="dialog" title="Playbook library"><span class="library-mark" aria-hidden="true">W</span><span id="playbook-current">WISDOM</span><span class="library-caption">Playbooks</span></button>
   <span class="tb-meta hide-phone" id="turns-count">0 turns</span>
   <span class="grow"></span>
   <span class="tb-meta hide-phone" id="loopback"></span>
@@ -583,7 +707,8 @@
         <span class="caps">Orchestration</span>
         <span class="status" id="graph-status"><span id="graph-status-text">—</span><span id="graph-chev"></span></span>
       </button>
-      <div class="stage-box" id="stage-box">
+      <div class="graph-body">
+      <div class="graph-map" id="graph-map"><div class="stage-box" id="stage-box">
         <div class="stage" id="stage">
           <svg id="stage-svg" viewBox="0 0 798 240" width="798" height="240" role="img" aria-label="Agent traffic graph">
             <desc id="stage-desc">No traffic yet.</desc>
@@ -591,6 +716,9 @@
           </svg>
           <div id="nodes"></div>
         </div>
+      </div>
+      </div>
+      <aside class="exchange" aria-label="Latest agent exchanges"><div class="exchange-heading"><span class="caps">Latest exchanges</span><span class="exchange-state" id="exchange-state">Waiting</span></div><div id="exchange-list"></div></aside>
       </div>
       <div class="graph-foot" id="graph-foot" hidden></div>
     </section>
@@ -635,24 +763,40 @@
 
 <div class="scrim" id="scrim" hidden></div>
 
-<div class="popover" id="settings" role="dialog" aria-label="Orchestrator settings" hidden>
-  <div class="ov-hd"><span class="t">Orchestrator</span><span class="esc">esc</span></div>
-  <div class="ov-body">
+<div class="popover setup" id="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+  <div class="setup-heading"><div><div class="caps">Your workspace</div><h2 id="settings-title">Session setup</h2></div><button class="close-btn" type="button" id="settings-close" aria-label="Close session setup">×</button></div>
+  <div class="setup-tabs" role="tablist" aria-label="Session setup"><button type="button" id="tab-agent" role="tab" aria-controls="panel-agent" aria-selected="true">Agent</button><button type="button" id="tab-team" role="tab" aria-controls="panel-team" aria-selected="false" tabindex="-1">Team</button><button type="button" id="tab-preferences" role="tab" aria-controls="panel-preferences" aria-selected="false" tabindex="-1">Preferences</button></div>
+  <div class="setup-scroll">
+  <div class="setup-panel" id="panel-agent" role="tabpanel" aria-labelledby="tab-agent">
+    <p class="panel-intro">Choose who leads the conversation.</p>
     <div class="field"><div class="caps">Vendor</div><div class="seg" id="set-vendor"></div></div>
-    <div class="field"><div class="caps">Model</div><div class="list" id="set-model"></div></div>
+    <div class="field"><label class="caps" for="set-model">Model</label><select class="input model-select" id="set-model"></select></div>
     <div class="field"><div class="caps">Effort <span class="opt" id="set-effort-note"></span></div><div class="seg small" id="set-effort"></div></div>
-    <div class="field"><div class="caps">Name</div><input class="input" id="set-name" type="text" placeholder="Orchestrator" autocomplete="off"></div>
-    <div class="field"><div class="caps">Working directory</div><input class="input mono" id="set-cwd" type="text" placeholder="/abs/path" autocomplete="off" spellcheck="false"></div>
-    <details class="v2-details"><summary>Playbook</summary><div id="set-playbooks"></div><label class="caps" for="playbook-upload">Upload markdown</label><input class="input" id="playbook-upload" type="file" accept=".md,text/markdown"><div class="v2-meta">Up to 256 KB. Selecting a new playbook starts a fresh session.</div></details>
-    <details class="v2-details"><summary>Team</summary><label class="caps" for="team-preset">Preset</label><select class="input" id="team-preset"></select><div class="v2-row"><label for="team-mode">Role rules</label><select class="input" id="team-mode"><option value="suggest">Suggested roles</option><option value="strict">Only these roles</option></select></div><div id="team-roles"></div><button class="btn secondary" type="button" id="team-add">Add role</button><div class="v2-row"><input class="input" id="team-name" placeholder="Preset name" aria-label="Preset name"><button class="btn secondary" type="button" id="team-save">Save preset</button></div><button class="btn secondary" type="button" id="team-delete">Delete preset</button></details>
-    <div class="v2-row notification-controls"><button class="btn secondary" type="button" id="notify-btn">Enable background alerts</button><button class="btn secondary" type="button" id="notify-test" hidden>Send test alert</button><button class="btn secondary" type="button" id="notify-off" hidden>Disable alerts</button></div>
-    <div class="noteline">Model and effort take effect on the next turn.</div>
-    <div class="actions">
-      <button type="button" class="btn tall" id="apply-btn">Apply</button>
+    <div class="field"><label class="caps" for="set-name">Display name</label><input class="input" id="set-name" type="text" placeholder="Orchestrator" autocomplete="off"></div>
+    <div class="field"><label class="caps" for="set-cwd">Working directory</label><input class="input mono" id="set-cwd" type="text" placeholder="/abs/path" autocomplete="off" spellcheck="false"></div>
+    <div class="session-reset"><div><strong>Start fresh</strong><p id="reset-hint">Keeps saved history</p></div>
       <button type="button" class="btn tall secondary" id="reset-btn">New session</button>
-      <span class="hint" id="reset-hint">keeps saved history</span>
     </div>
   </div>
+  <div class="setup-panel" id="panel-team" role="tabpanel" aria-labelledby="tab-team" hidden><p class="panel-intro">Give delegated agents a role and a brief.</p><div class="field"><label class="caps" for="team-preset">Team preset</label><select class="input" id="team-preset"></select></div><div class="v2-row"><label for="team-mode">Role rules</label><select class="input" id="team-mode"><option value="suggest">Suggested roles</option><option value="strict">Only these roles</option></select></div><div id="team-roles"></div><button class="btn secondary" type="button" id="team-add">Add role</button><div class="v2-row"><input class="input" id="team-name" placeholder="Preset name" aria-label="Preset name"><button class="btn secondary" type="button" id="team-save">Save preset</button></div><button class="btn secondary" type="button" id="team-delete">Delete preset</button></div>
+  <div class="setup-panel" id="panel-preferences" role="tabpanel" aria-labelledby="tab-preferences" hidden>
+    <p class="panel-intro">Make this device feel like yours.</p>
+    <section class="preference-card"><div class="preference-heading"><strong>Background alerts</strong><span class="status-tag" id="notify-status" role="status">Checking…</span></div><p>Get an update when work finishes, even with the app closed.</p><div class="notification-controls"><button class="btn secondary" type="button" id="notify-btn">Enable background alerts</button><button class="btn secondary" type="button" id="notify-test" hidden>Send test alert</button><button class="btn secondary" type="button" id="notify-off" hidden>Disable alerts</button></div><p class="v2-meta" id="notify-detail"></p></section>
+    <section class="preference-card"><strong>Appearance</strong><div class="seg" id="theme-options" aria-label="Color theme"></div></section>
+    <section class="preference-card"><label class="motion-label" for="animate-traffic"><span><strong>Animate traffic</strong><span class="preference-description">Brief message arrivals and agent activity. Respects reduced motion.</span></span><input type="checkbox" id="animate-traffic" checked></label></section>
+  </div>
+  </div>
+  <div class="setup-footer" id="settings-footer"><span>Changes apply to your next turn.</span><button type="button" class="btn tall" id="apply-btn">Save changes</button></div>
+</div>
+
+<div class="popover setup library" id="playbooks" role="dialog" aria-modal="true" aria-labelledby="playbooks-title" hidden>
+  <div class="setup-heading"><div><div class="caps">Instructions for your agents</div><h2 id="playbooks-title">Playbook library</h2></div><button class="close-btn" type="button" id="playbooks-close" aria-label="Close playbook library">×</button></div>
+  <div class="setup-scroll"><div class="setup-panel">
+    <p class="panel-intro">WISDOM comes ready to use. Bring your own markdown to give your agents a different way of working.</p>
+    <div id="set-playbooks" class="playbook-cards" role="radiogroup" aria-label="Playbook"></div>
+    <div class="upload-zone" id="playbook-drop"><span class="upload-symbol" aria-hidden="true">↥</span><strong>Drop a .md file here</strong><span>or choose one from your device · up to 256 KB</span><label class="btn secondary" for="playbook-upload">Choose markdown<input id="playbook-upload" type="file" accept=".md,text/markdown"></label><span id="upload-status" role="status"></span></div>
+  </div></div>
+  <div class="setup-footer"><span id="playbook-hint">Switching starts a fresh session. History stays saved.</span><button type="button" class="btn tall" id="playbook-apply">Use playbook</button></div>
 </div>
 
 <div class="palette" id="palette" role="dialog" aria-label="Command palette" hidden>
@@ -907,6 +1051,10 @@ function derive(state) {
 
 /* ================= top bar ================= */
 function renderTopbar(state) {
+  const current = (state.orchestrator || {}).playbook || 'wisdom';
+  const playbook = (state.playbooks || []).find((p) => p.slug === current);
+  $('playbook-current').textContent = playbook ? playbook.name : current === 'wisdom' ? 'WISDOM' : current;
+  $('playbooks-btn').querySelector('.library-mark').textContent = current === 'wisdom' ? 'W' : 'M';
   const o = state.orchestrator || {};
   const lbl = orchestratorLabel();
   $('pill-name').textContent = lbl.primary;
@@ -1009,13 +1157,13 @@ function geometry(phone, n) {
     const xs = []; for (let i = 0; i < n; i++) xs.push(Math.round(195 + (i - (n - 1) / 2) * pitch));
     return { phone: true, w: 390, h: 150, pitch: pitch || 112, nodeW: 80, youPath: null, orch: { x: 195, y: 20 }, xs, edge: (x) => `M195,46 L${x},78` };
   }
-  const pitch = n <= 1 ? 0 : Math.min(259, Math.max(132, 658 / (n - 1)));
-  const xs = []; for (let i = 0; i < n; i++) xs.push(Math.round(399 + (i - (n - 1) / 2) * pitch));
-  return { phone: false, w: 798, h: 240, pitch: pitch || 259, nodeW: Math.min(140, Math.max(100, (pitch || 259) - 6)), youPath: 'M399,26 L399,44', orch: { x: 399, y: 70 }, xs, edge: (x) => (x === 399 ? 'M399,96 L399,130' : `M399,96 C399,116 ${x},110 ${x},130`) };
+  const pitch = n <= 1 ? 0 : Math.min(138, 350 / (n - 1));
+  const xs = []; for (let i = 0; i < n; i++) xs.push(Math.round(230 + (i - (n - 1) / 2) * pitch));
+  return { phone: false, w: 460, h: 252, pitch: pitch || 138, nodeW: Math.min(120, (pitch || 138) - 6), youPath: 'M230,26 L230,44', orch: { x: 230, y: 70 }, xs, edge: (x) => (x === 230 ? 'M230,96 L230,136' : `M230,96 C230,118 ${x},112 ${x},136`) };
 }
 function weightClass(n) { return n <= 0 ? 'w0' : n <= 3 ? 'w1' : n <= 12 ? 'w2' : 'w3'; }
 function visibleWorkers(d, phone) {
-  const w = d.workers.slice(); const max = phone ? 4 : 6;
+  const w = d.workers.slice(); const max = 4;
   if (w.length <= max) return { shown: w, hidden: [] };
   const sorted = w.slice().sort((a, b) => (b.last_seen || '').localeCompare(a.last_seen || ''));
   const shown = sorted.slice(0, max - 1).sort((a, b) => a.id.localeCompare(b.id));
@@ -1023,8 +1171,8 @@ function visibleWorkers(d, phone) {
 }
 function fitStage() {
   const phone = phoneMQ.matches;
-  const avail = Math.max(200, $('graph').clientWidth - (phone ? 0 : 48));
-  const k = Math.min(1, avail / (phone ? 390 : 798));
+  const avail = Math.max(200, $('graph-map').clientWidth);
+  const k = Math.min(1, avail / (phone ? 390 : 460));
   document.documentElement.style.setProperty('--k', k.toFixed(4));
 }
 function makeNode(id, kind) {
@@ -1064,7 +1212,7 @@ function dimOthers(id) {
 function renderGraph(state, d) {
   const phone = phoneMQ.matches;
   const graph = $('graph'); graph.classList.toggle('phone', phone);
-  stageSvg.setAttribute('viewBox', phone ? '0 0 390 150' : '0 0 798 240'); stageSvg.setAttribute('width', phone ? 390 : 798); stageSvg.setAttribute('height', phone ? 150 : 240);
+  stageSvg.setAttribute('viewBox', phone ? '0 0 390 150' : '0 0 460 252'); stageSvg.setAttribute('width', phone ? 390 : 460); stageSvg.setAttribute('height', phone ? 150 : 252);
   fitStage();
   const { shown, hidden } = visibleWorkers(d, phone);
   const slots = shown.map((a) => a.id); if (hidden.length) slots.push('+more');
@@ -1132,6 +1280,8 @@ function renderGraph(state, d) {
   });
   // header / collapsed / footer
   graph.classList.toggle('collapsed', graphCollapsed || (phone && phoneAutoCollapsed));
+  if (graph.classList.contains('collapsed')) cometQueue.length = 0;
+  fitStage();
   $('graph-hd').setAttribute('aria-expanded', String(!graph.classList.contains('collapsed')));
   const st = $('graph-status-text'); const stWrap = $('graph-status');
   const pendingCount = d.pendingByWorker.size;
@@ -1168,8 +1318,9 @@ function pathFor(m) {
 }
 function flashNode(id) { const n = nodeEls.get(id); if (!n) return; n.classList.remove('flash'); void n.offsetWidth; n.classList.add('flash'); setTimeout(() => n.classList.remove('flash'), 340); }
 function enqueueHops(newMsgs) {
-  if ($('graph').classList.contains('collapsed')) return;
-  for (const m of newMsgs) { const r = pathFor(m); if (r) cometQueue.push({ m, r }); }
+  if (!trafficMotion() || $('graph').classList.contains('collapsed')) return;
+  for (const m of newMsgs.slice(-6)) { const r = pathFor(m); if (r) cometQueue.push({ m, r, generation: stage.dataset.sig }); }
+  if (cometQueue.length > 6) cometQueue.splice(0, cometQueue.length - 6);
   pumpComets();
 }
 function pumpComets() {
@@ -1179,8 +1330,9 @@ function pumpComets() {
     setTimeout(() => launchComet(job), wait);
   }
 }
-function launchComet({ m, r }) {
+function launchComet({ m, r, generation }) {
   const done = () => { cometsActive = Math.max(0, cometsActive - 1); pumpComets(); };
+  if (!trafficMotion() || $('graph').classList.contains('collapsed') || generation !== stage.dataset.sig) { done(); return; }
   const hueId = m.from;
   if (!r.d) { flashNode(r.dest); setTimeout(done, 300); return; }
   const lit = svgEl('path', { d: r.d, class: 'edge-lit' + (reducedMotion.matches ? ' rm' : '') }); fxG.appendChild(lit);
@@ -1198,6 +1350,52 @@ function launchComet({ m, r }) {
   }
   setTimeout(() => flashNode(r.dest), dur * 0.66);
   setTimeout(done, dur);
+}
+
+/* Actual message excerpts only; three persistent cards, no replay on reopen. */
+let exchangeSignature = '';
+function trafficMotion() { return !document.hidden && !reducedMotion.matches && load('ah-motion') !== 'off'; }
+function syncMotion() {
+  document.body.classList.toggle('motion-paused', !trafficMotion());
+  if (!trafficMotion()) { cometQueue.length = 0; stage.querySelectorAll('.comet').forEach((n) => n.remove()); svgComets.textContent = ''; }
+}
+document.addEventListener('visibilitychange', syncMotion);
+reducedMotion.addEventListener('change', syncMotion);
+function renderExchanges(state, newMsgs) {
+  const messages = (state.messages || []).filter((m) => m.from && m.to && m.from !== m.to && String(m.text || '').trim() && !(m.meta || {}).same_as_text).slice(-3);
+  const sig = JSON.stringify(messages.map((m) => [m.id, m.text, nameFor(m.from), nameFor(m.to)]));
+  $('exchange-state').textContent = state.orchestrator.busy ? 'Working' : 'Caught up';
+  if (sig === exchangeSignature) return;
+  exchangeSignature = sig;
+  const box = $('exchange-list'); const existing = new Map(Array.from(box.children).map((n) => [n.dataset.message, n]));
+  const newIds = new Set(newMsgs.map((m) => m.id)); const keep = new Set(messages.map((m) => m.id));
+  for (const n of Array.from(box.children)) if (!keep.has(n.dataset.message)) n.remove();
+  if (!messages.length) { box.textContent = ''; box.appendChild(el('div', 'exchange-empty', 'Your team’s messages will appear here as work happens. Start a conversation below.')); return; }
+  messages.forEach((m) => {
+    const signature = JSON.stringify([m.text, nameFor(m.from), nameFor(m.to)]);
+    let card = existing.get(m.id);
+    if (!card || card.dataset.signature !== signature) {
+      if (card) card.remove();
+      card = el('button', 'exchange-card'); card.type = 'button'; card.dataset.message = m.id; card.dataset.signature = signature; card.style.setProperty('--hue', hueOf(m.from));
+      const route = el('div', 'exchange-route'); route.appendChild(el('span', 'route-names', `${nameFor(m.from)} → ${nameFor(m.to)}`));
+      const kind = m.kind === 'tool_use' ? 'Task' : m.kind === 'receipt' ? ((m.meta || {}).root_code === 'ok' ? 'Done' : 'Issue') : m.kind === 'error' ? 'Issue' : 'Message';
+      route.appendChild(el('span', 'exchange-kind', kind));
+      const time = el('time', '', hhmmss(m.ts)); time.dateTime = m.ts; route.appendChild(time);
+      card.append(route, el('p', '', String(m.text).replace(/\s+/g, ' ').slice(0, 240)));
+      card.title = 'Show this exchange in the feed';
+      card.addEventListener('click', () => {
+        feedQuery = ''; $('feed-search').value = ''; selectedAgent = null;
+        const taskId = derived.receiptOf.get(m.id) || m.id;
+        const task = (lastState.messages || []).find((item) => item.id === taskId);
+        if (task && task.kind === 'tool_use') cardOpen.set(taskId, true);
+        feedSig = ''; renderFeed(lastState, derived, []); renderRoster(lastState, derived); renderGraph(lastState, derived);
+        const target = Array.from(feedInner.querySelectorAll('[data-mid]')).find((n) => n.dataset.mid === taskId);
+        if (target) { target.scrollIntoView({block:'center', behavior:trafficMotion() ? 'smooth' : 'auto'}); target.classList.add('hl'); }
+      });
+      if (newIds.has(m.id) && trafficMotion() && !$('graph').classList.contains('collapsed')) { card.classList.add('arrive'); card.addEventListener('animationend', () => card.classList.remove('arrive'), {once:true}); }
+    }
+    box.appendChild(card);
+  });
 }
 
 /* ================= feed ================= */
@@ -1523,13 +1721,31 @@ function submitComposer() {
 /* ================= overlays ================= */
 const scrim = $('scrim');
 let openOverlay = null;
-function showOverlay(id, clearScrim) { closeOverlay(); openOverlay = id; $(id).hidden = false; scrim.hidden = false; scrim.classList.toggle('clear', !!clearScrim); if (id === 'settings') $('session-pill').setAttribute('aria-expanded', 'true'); }
-function closeOverlay() { if (!openOverlay) return; $(openOverlay).hidden = true; scrim.hidden = true; if (openOverlay === 'settings') { $('session-pill').setAttribute('aria-expanded', 'false'); dirtySettings = false; } openOverlay = null; }
+let overlayTrigger = null;
+function showOverlay(id, clearScrim) {
+  closeOverlay(); overlayTrigger = document.activeElement; openOverlay = id; $(id).hidden = false; scrim.hidden = false; scrim.classList.toggle('clear', !!clearScrim);
+  if (id === 'settings') $('session-pill').setAttribute('aria-expanded', 'true');
+  $('main').inert = true; document.querySelector('.topbar').inert = true;
+  const first = $(id).querySelector('button:not(:disabled), input:not(:disabled), select:not(:disabled)'); if (first) first.focus();
+}
+function closeOverlay() {
+  if (!openOverlay) return;
+  $(openOverlay).hidden = true; scrim.hidden = true;
+  if (openOverlay === 'settings') { $('session-pill').setAttribute('aria-expanded', 'false'); dirtySettings = false; }
+  openOverlay = null; $('main').inert = false; document.querySelector('.topbar').inert = false;
+  if (overlayTrigger && overlayTrigger.isConnected) overlayTrigger.focus(); overlayTrigger = null;
+}
 function closeSheet() { if (openOverlay === 'phone-sheet') closeOverlay(); }
 scrim.addEventListener('click', closeOverlay);
 document.addEventListener('keydown', (e) => {
   const mod = isMac ? e.metaKey : e.ctrlKey;
   if (e.key === 'Escape' && openOverlay) { e.preventDefault(); closeOverlay(); return; }
+  if (e.key === 'Tab' && openOverlay) {
+    const items = Array.from($(openOverlay).querySelectorAll('button, input, select, textarea, a[href], [tabindex]')).filter((n) => !n.disabled && n.tabIndex >= 0 && n.getClientRects().length);
+    const first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
   if (mod && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); if (openOverlay === 'palette') closeOverlay(); else openPalette(); return; }
   if (mod && (e.key === 'g' || e.key === 'G')) { e.preventDefault(); toggleGraph(); return; }
   if (mod && e.shiftKey && (e.key === 'l' || e.key === 'L')) { e.preventDefault(); toggleTheme(); return; }
@@ -1539,8 +1755,8 @@ document.addEventListener('keydown', (e) => {
 function toggleGraph() { graphCollapsed = !graphCollapsed; phoneAutoCollapsed = false; store('ah-graph', graphCollapsed ? 'collapsed' : 'open'); if (lastState) renderGraph(lastState, derived); }
 function toggleTheme() { applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'); toast(`${document.documentElement.dataset.theme === 'light' ? 'Light' : 'Dark'} theme`, '', 'neutral'); }
 
-/* ---- settings popover ---- */
-const setState = { vendor: 'claude', model: '', effort: '', name: '', cwd: '', playbook: 'wisdom', team: {mode:'suggest',roles:[]} };
+/* ---- session setup ---- */
+const setState = { vendor: 'claude', model: '', effort: '', name: '', cwd: '', team: {mode:'suggest',roles:[]} };
 function seg(container, items, value, onPick, extraCls) {
   container.textContent = '';
   items.forEach((it) => { const b = el('button', `${it === value ? 'on' : ''}${extraCls && extraCls(it) ? ' ' + extraCls(it) : ''}`, it === 'medium' && items.length > 4 ? 'med' : it); b.type = 'button'; b.dataset.value = it; b.title = it; b.setAttribute('aria-pressed', String(it === value)); b.addEventListener('click', () => onPick(it)); container.appendChild(b); });
@@ -1549,22 +1765,40 @@ function renderSettings() {
   const o = lastState && lastState.orchestrator || {}; const opts = (o.options || {})[setState.vendor] || { models: [], efforts: [] };
   seg($('set-vendor'), Object.keys(o.options || { claude: 1, codex: 1 }).filter((v) => v !== 'targets'), setState.vendor, (v) => { dirtySettings = true; setState.vendor = v; const op = (o.options || {})[v] || { models: [], efforts: [] }; setState.model = op.models[0] || ''; setState.effort = op.efforts[Math.min(2, op.efforts.length - 1)] || ''; renderSettings(); });
   const list = $('set-model'); list.textContent = '';
-  opts.models.forEach((m) => { const b = el('button', m === setState.model ? 'on' : ''); b.type = 'button'; b.appendChild(el('span', '', m)); if (m === setState.model) b.appendChild(icon('check', 10)); b.addEventListener('click', () => { dirtySettings = true; setState.model = m; renderSettings(); }); list.appendChild(b); });
+  const models = opts.models.slice(); if (setState.model && !models.includes(setState.model)) models.push(setState.model);
+  models.forEach((m) => { const option = el('option', '', m); option.value = m; list.appendChild(option); }); list.value = setState.model;
   const supported = (opts.model_efforts || {})[setState.model];
   $('set-effort-note').textContent = supported ? '· learned model support' : '· support learned during use';
   seg($('set-effort'), opts.efforts, setState.effort, (e) => { dirtySettings = true; setState.effort = e; renderSettings(); });
   for (const b of $('set-effort').children) { b.disabled = !!supported && !supported.includes(b.dataset.value); b.title = b.disabled ? 'This model does not support this effort' : ''; }
   if (document.activeElement !== $('set-name')) $('set-name').value = setState.name || '';
   if (document.activeElement !== $('set-cwd')) $('set-cwd').value = setState.cwd || '';
-  renderPlaybooks(); renderTeam();
+  renderTeam();
 }
-function openSettings() {
+function openSettings(tab = 'agent') {
   const o = lastState && lastState.orchestrator || {};
-  if (!dirtySettings) Object.assign(setState, { vendor: o.vendor || 'claude', model: o.model || '', effort: o.effort || '', name: o.name || '', cwd: o.cwd || '', playbook: o.playbook || 'wisdom', team: JSON.parse(JSON.stringify(o.team || {mode:'suggest',roles:[]})) });
-  renderSettings(); showOverlay('settings', true);
-  const pill = $('session-pill').getBoundingClientRect(); const pop = $('settings');
-  if (!phoneMQ.matches) { pop.style.left = `${Math.max(8, Math.min(pill.left, window.innerWidth - 376))}px`; pop.style.top = `${pill.bottom + 8}px`; } else { pop.style.left = ''; pop.style.top = ''; }
+  if (!dirtySettings) Object.assign(setState, { vendor: o.vendor || 'claude', model: o.model || '', effort: o.effort || '', name: o.name || '', cwd: o.cwd || '', team: JSON.parse(JSON.stringify(o.team || {mode:'suggest',roles:[]})) });
+  renderSettings(); showOverlay('settings'); selectSettingsTab(tab);
 }
+$('set-model').addEventListener('change', () => { dirtySettings = true; setState.model = $('set-model').value; renderSettings(); });
+$('settings-close').addEventListener('click', closeOverlay);
+function selectSettingsTab(name) {
+  for (const tab of ['agent','team','preferences']) { const active = name === tab; $('tab-' + tab).setAttribute('aria-selected', String(active)); $('tab-' + tab).tabIndex = active ? 0 : -1; $('panel-' + tab).hidden = !active; }
+  $('settings-footer').hidden = name === 'preferences';
+  if (name === 'preferences') {
+    seg($('theme-options'), ['Dark','Light'], document.documentElement.dataset.theme === 'light' ? 'Light' : 'Dark', (theme) => { applyTheme(theme.toLowerCase()); selectSettingsTab('preferences'); });
+    $('animate-traffic').checked = load('ah-motion') !== 'off';
+  }
+}
+for (const name of ['agent','team','preferences']) $('tab-' + name).addEventListener('click', () => selectSettingsTab(name));
+document.querySelector('.setup-tabs').addEventListener('keydown', (e) => {
+  const names = ['agent','team','preferences'], current = names.indexOf(e.target.id.replace('tab-', ''));
+  if (current < 0 || !['ArrowLeft','ArrowRight','Home','End'].includes(e.key)) return;
+  e.preventDefault(); const next = e.key === 'Home' ? 0 : e.key === 'End' ? 2 : (current + (e.key === 'ArrowRight' ? 1 : 2)) % 3;
+  selectSettingsTab(names[next]); $('tab-' + names[next]).focus();
+});
+$('animate-traffic').addEventListener('change', () => { store('ah-motion', $('animate-traffic').checked ? 'on' : 'off'); syncMotion(); });
+syncMotion();
 $('session-pill').addEventListener('click', () => { if (openOverlay === 'settings') closeOverlay(); else openSettings(); });
 $('set-name').addEventListener('input', () => { dirtySettings = true; setState.name = $('set-name').value; });
 $('set-cwd').addEventListener('input', () => { dirtySettings = true; setState.cwd = $('set-cwd').value; });
@@ -1575,7 +1809,6 @@ $('apply-btn').addEventListener('click', () => {
   if (setState.effort && setState.effort !== o.effort) { body.effort = setState.effort; changes.push(`effort → ${setState.effort}`); }
   if ((setState.name || '').trim() && setState.name.trim() !== o.name) { body.name = setState.name.trim(); changes.push(`name → ${body.name}`); }
   if ((setState.cwd || '').trim() && setState.cwd.trim() !== o.cwd) { body.cwd = setState.cwd.trim(); changes.push('cwd changed'); }
-  if (setState.playbook !== (o.playbook || 'wisdom')) { body.playbook = setState.playbook; changes.push('playbook updated'); }
   if (JSON.stringify(setState.team) !== JSON.stringify(o.team || {mode:'suggest',roles:[]})) { body.team = setState.team; changes.push('team updated'); }
   if (!Object.keys(body).length) { toast('Nothing to apply', '', 'neutral'); return; }
   if (body.vendor) body.model = setState.model; if (body.vendor) body.effort = setState.effort;
@@ -1600,6 +1833,9 @@ function palActions() {
   const o = lastState && lastState.orchestrator || {}; const other = o.vendor === 'claude' ? 'codex' : 'claude'; const k = isMac ? '⌘' : 'Ctrl+';
   if (palMode === 'effort') { const opt = (o.options || {})[o.vendor] || {}; const eff = (opt.model_efforts || {})[o.model] || opt.efforts || []; return eff.map((e) => ({ group: `Effort · ${o.vendor}`, icon: 'lines', label: e, right: e === o.effort ? 'current' : '', run: () => setOrch({ effort: e }, `effort → ${e}`) })); }
   return [
+    { group: 'Workspace', icon: 'lines', label: 'Session setup…', run: () => { openSettings(); return true; } },
+    { group: 'Workspace', icon: 'rect', label: 'Playbook library…', right: 'WISDOM or your own markdown', run: () => { openPlaybooks(); return true; } },
+    { group: 'Workspace', icon: 'sun', label: 'Preferences & alerts…', run: () => { openSettings('preferences'); return true; } },
     { group: 'Orchestrator', icon: 'lines', label: 'Set effort…', right: (((o.options || {})[o.vendor] || {}).efforts || []).join(' · '), run: () => { palMode = 'effort'; palIndex = 0; $('pal-input').value = ''; renderPalette(); return true; } },
     { group: 'Orchestrator', icon: 'arrowR', label: `Switch vendor to ${other}`, right: 'drops the session', run: () => { const op = (o.options || {})[other] || { models: [], efforts: [] }; setOrch({ vendor: other, model: op.models[0], effort: op.efforts[Math.min(2, op.efforts.length - 1)] }, `vendor → ${other}`); } },
     { group: 'Orchestrator', icon: 'refresh', label: 'New session', right: 'confirms first', run: () => { closeOverlay(); openSettings(); $('reset-btn').click(); return true; } },
@@ -1710,10 +1946,11 @@ function applyState(state) {
   for (const m of msgs) if (!seenIds.has(m.id)) { seenIds.add(m.id); if (initialized) newMsgs.push(m); }
   derived = derive(state);
   for (const m of newMsgs) if (m.kind === 'receipt' && String(m.from).startsWith('worker:')) justDone.set(m.from, { at: now, ok: ((m.meta || {}).root_code) === 'ok', dur: (m.meta || {}).duration_ms });
-  renderTopbar(state); renderRoster(state, derived); renderSystem(state); renderGraph(state, derived); renderFeed(state, derived, newMsgs); renderComposer(state, derived); renderSpans(state, derived);
+  renderTopbar(state); renderRoster(state, derived); renderSystem(state); renderGraph(state, derived); renderExchanges(state, newMsgs); renderFeed(state, derived, newMsgs); renderComposer(state, derived); renderSpans(state, derived);
   if (state.today) $('today-stats').textContent = `Today · ${state.today.turns} turns · ${state.today.delegations} delegations · ${fmtTok(state.today.tokens)} tokens · ${state.today.ok_rate == null ? '—' : Math.round(state.today.ok_rate * 100) + '%'} ok · median ${fmtDur(state.today.p50_duration_ms)}`;
   if (statsFresh && lastStats) renderStats(lastStats);
   if (initialized && newMsgs.length) enqueueHops(newMsgs);
+  if (openOverlay === 'playbooks') updatePlaybookAction();
   initialized = true;
   return newMsgs.length > 0;
 }
@@ -1767,29 +2004,74 @@ function refreshCatalogs() {
     renderPlaybooks(); renderTeam();
   });
 }
+let selectedPlaybook = 'wisdom', uploadingPlaybook = false;
+function openPlaybooks() {
+  selectedPlaybook = (lastState && lastState.orchestrator.playbook) || 'wisdom';
+  renderPlaybooks(); showOverlay('playbooks');
+  refreshCatalogs().catch((e) => toast('Could not load library', e.message, 'err'));
+}
+$('playbooks-btn').addEventListener('click', openPlaybooks);
+$('playbooks-close').addEventListener('click', closeOverlay);
 function renderPlaybooks() {
   const box = $('set-playbooks'); box.textContent = '';
   const rows = lastState && lastState.playbooks || [{slug:'wisdom',name:'WISDOM',builtin:true},{slug:'none',name:'None',builtin:true}];
-  rows.forEach((p) => {
-    const row = el('div', 'v2-row'); const label = el('label'); const radio = el('input'); radio.type = 'radio'; radio.name = 'playbook'; radio.value = p.slug; radio.checked = setState.playbook === p.slug;
-    radio.addEventListener('change', () => { setState.playbook = p.slug; dirtySettings = true; });
-    label.append(radio, document.createTextNode(' ' + p.name)); row.appendChild(label);
+  const current = (lastState && lastState.orchestrator.playbook) || 'wisdom';
+  rows.slice().sort((a,b) => a.slug === b.slug ? 0 : a.slug === 'wisdom' ? -1 : b.slug === 'wisdom' ? 1 : a.slug === 'none' ? 1 : b.slug === 'none' ? -1 : a.name.localeCompare(b.name)).forEach((p) => {
+    const row = el('div', 'playbook-card' + (selectedPlaybook === p.slug ? ' selected' : '')); const label = el('label', 'playbook-pick'); const radio = el('input'); radio.type = 'radio'; radio.name = 'playbook'; radio.value = p.slug; radio.checked = selectedPlaybook === p.slug;
+    radio.addEventListener('change', () => {
+      selectedPlaybook = p.slug;
+      box.querySelectorAll('.playbook-card').forEach((card) => card.classList.toggle('selected', card.querySelector('input').checked));
+      updatePlaybookAction();
+    });
+    const copy = el('div', 'playbook-copy'), name = el('div', 'playbook-name', p.name);
+    if (p.slug === 'wisdom') name.appendChild(el('span', 'status-tag on', 'Default'));
+    if (current === p.slug) name.appendChild(el('span', 'status-tag', 'In use'));
+    copy.appendChild(name);
+    copy.appendChild(el('div', 'playbook-description', p.slug === 'wisdom' ? 'The built-in standard for planning, implementation, and review.' : p.slug === 'none' ? 'No additional playbook. Your agent’s global instructions still apply.' : p.summary || 'Your custom instructions for the orchestrator and its workers.'));
+    if (p.sha256) { const info = el('div', 'v2-meta', `${Math.ceil(p.bytes / 1024)} KB · ${p.sha256.slice(0,8)}`); info.title = 'SHA-256 ' + p.sha256; copy.appendChild(info); }
+    label.append(radio, copy); row.appendChild(label);
     if (!p.builtin) {
-      const del = el('button', 'btn secondary', 'Delete'); del.type = 'button'; del.disabled = p.slug === (lastState && lastState.orchestrator.playbook);
-      del.addEventListener('click', () => removeDocument('/api/playbooks/' + encodeURIComponent(p.slug)).then(() => { if (setState.playbook === p.slug) setState.playbook = 'wisdom'; return refreshCatalogs(); }).catch((e) => toast('Could not delete playbook', e.message, 'err'))); row.appendChild(del);
+      const del = el('button', 'btn secondary', 'Delete'); del.type = 'button'; del.disabled = p.slug === current; del.setAttribute('aria-label', 'Delete ' + p.name);
+      del.addEventListener('click', () => { del.disabled = true; removeDocument('/api/playbooks/' + encodeURIComponent(p.slug)).then(() => { if (selectedPlaybook === p.slug) selectedPlaybook = current; return refreshCatalogs(); }).catch((e) => { del.disabled = false; toast('Could not delete playbook', e.message, 'err'); }); }); row.appendChild(del);
     }
     box.appendChild(row);
-    if (p.sha256) { const info = el('div', 'v2-meta', `${p.summary || ''} · ${p.bytes} bytes · SHA-256 ${p.sha256}`); info.title = p.uploaded_at || ''; box.appendChild(info); }
   });
+  updatePlaybookAction();
 }
-$('playbook-upload').addEventListener('change', async (e) => {
-  const file = e.target.files[0]; if (!file) return;
+function updatePlaybookAction() {
+  const current = (lastState && lastState.orchestrator.playbook) || 'wisdom';
+  const busy = !!(lastState && lastState.orchestrator.busy);
+  $('playbook-apply').disabled = uploadingPlaybook || selectedPlaybook === current || busy;
+  $('playbook-apply').textContent = selectedPlaybook === current ? 'Currently in use' : 'Use playbook';
+  $('playbook-hint').textContent = busy ? 'You can upload now. Switch when the current turn finishes.' : 'Switching starts a fresh session. History stays saved.';
+}
+async function uploadPlaybook(file) {
+  if (!file || uploadingPlaybook) return;
+  uploadingPlaybook = true; $('playbook-upload').disabled = true; $('upload-status').textContent = 'Uploading…'; updatePlaybookAction();
   try {
     if (!file.name.toLowerCase().endsWith('.md') || file.size > 256 * 1024) throw new Error('Choose a .md file of at most 256 KB.');
     const content = new TextDecoder('utf-8', {fatal:true}).decode(await file.arrayBuffer());
     const p = await postJSON('/api/playbooks', {name:file.name.slice(0,-3),content});
-    setState.playbook = p.slug; dirtySettings = true; await refreshCatalogs(); toast('Playbook uploaded', 'Apply to select it.');
-  } catch (err) { toast('Upload failed', err.message, 'err'); } finally { e.target.value = ''; }
+    selectedPlaybook = p.slug; await refreshCatalogs(); $('upload-status').textContent = file.name + ' is ready. Select Use playbook to switch.';
+  } catch (err) { $('upload-status').textContent = err.message; toast('Upload failed', err.message, 'err'); }
+  finally { uploadingPlaybook = false; $('playbook-upload').value = ''; $('playbook-upload').disabled = false; updatePlaybookAction(); }
+}
+$('playbook-upload').addEventListener('change', (e) => uploadPlaybook(e.target.files[0]));
+for (const event of ['dragenter','dragover']) $('playbook-drop').addEventListener(event, (e) => { e.preventDefault(); $('playbook-drop').classList.add('dragging'); });
+$('playbook-drop').addEventListener('dragleave', (e) => { if (!$('playbook-drop').contains(e.relatedTarget)) $('playbook-drop').classList.remove('dragging'); });
+$('playbook-drop').addEventListener('drop', (e) => {
+  e.preventDefault(); $('playbook-drop').classList.remove('dragging');
+  if (e.dataTransfer.files.length !== 1) { $('upload-status').textContent = 'Choose one markdown file at a time.'; return; }
+  uploadPlaybook(e.dataTransfer.files[0]);
+});
+$('playbook-apply').addEventListener('click', async () => {
+  $('playbook-apply').disabled = true;
+  try {
+    const updated = await postJSON('/api/orchestrator', {playbook:selectedPlaybook});
+    if (lastState) { lastState.orchestrator = {...lastState.orchestrator, ...updated}; renderTopbar(lastState); }
+    closeOverlay(); toast('Playbook selected', 'Your next conversation will use it.'); pollState(true);
+  } catch (e) { toast('Could not select playbook', e.message, 'err'); }
+  finally { updatePlaybookAction(); }
 });
 function selectControl(values, value, onChange) {
   const select = el('select', 'input');
@@ -1880,21 +2162,28 @@ async function openHistory() {
 $('history-btn').addEventListener('click', openHistory);
 $('all-sessions-btn').addEventListener('click', openSessions);
 let pushDevice = null;
+function renderPushControls(error = '') {
+  $('notify-status').textContent = error ? 'Unavailable' : pushDevice ? 'Enabled' : 'Off';
+  $('notify-status').classList.toggle('on', !!pushDevice && !error);
+  $('notify-detail').textContent = error;
+  $('notify-btn').hidden = !!pushDevice;
+  $('notify-test').hidden = !pushDevice; $('notify-off').hidden = !pushDevice;
+  $('notify-btn').disabled = !!error;
+}
 async function refreshPush() {
   try {
     const info = await getJSON('/api/push');
     $('notify-btn').disabled = !info.available;
     $('notify-btn').title = info.error || 'Receive updates even when Harness is closed';
-    if (!info.available || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (!info.available || !('serviceWorker' in navigator) || !('PushManager' in window)) { renderPushControls(info.error || 'Background alerts are not available in this browser.'); return; }
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
     if (subscription) {
       const row = await postJSON('/api/push/subscribe', {subscription:subscription.toJSON()});
       pushDevice = row.id;
     } else pushDevice = null;
-    $('notify-btn').textContent = pushDevice ? 'Background alerts enabled' : 'Enable background alerts';
-    $('notify-test').hidden = !pushDevice; $('notify-off').hidden = !pushDevice;
-  } catch (_) { /* show a precise failure when the user enables or tests alerts */ }
+    renderPushControls();
+  } catch (e) { renderPushControls('Could not check alerts. Reopen the app to retry.'); }
 }
 $('notify-btn').addEventListener('click', async () => {
   if (!('Notification' in window) || !('PushManager' in window) || !('serviceWorker' in navigator)) return toast('Background alerts unavailable', 'Open Harness in Chrome and add it to your Home screen.', 'err');
@@ -1907,7 +2196,7 @@ $('notify-btn').addEventListener('click', async () => {
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:key});
     const row = await postJSON('/api/push/subscribe', {subscription:subscription.toJSON()}); pushDevice = row.id;
-    $('notify-test').hidden = false; $('notify-off').hidden = false; $('notify-btn').textContent = 'Background alerts enabled';
+    renderPushControls();
     toast('Background alerts enabled', 'Use Send test alert to check delivery.');
   } catch (e) { toast('Could not enable alerts', e.message, 'err'); }
 });
@@ -1917,7 +2206,7 @@ $('notify-off').addEventListener('click', async () => {
     await postJSON('/api/push/unsubscribe', {id:pushDevice});
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription(); if (subscription) await subscription.unsubscribe();
-    pushDevice = null; $('notify-test').hidden = true; $('notify-off').hidden = true; $('notify-btn').textContent = 'Enable background alerts'; toast('Background alerts disabled');
+    pushDevice = null; renderPushControls(); toast('Background alerts disabled');
   } catch (e) { toast('Could not disable alerts',e.message,'err'); }
 });
 function actionButton(label, action) {

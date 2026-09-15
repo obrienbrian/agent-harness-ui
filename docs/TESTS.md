@@ -144,3 +144,40 @@ Tailscale HTTPS consent. No paid model probes, public hosting, or live external-
 
 Residual: delivery still depends on browser/provider/Android settings. The app needs an awake, connected
 computer. This device witness is not a guarantee under every network/OS condition.
+
+## UI-05 — workspace refresh (2026-09-15; UI 0.5.0 / core 0.3.0)
+
+- Focused criteria and rollback: DESIGN-SPEC.md, Current workspace refresh. Runtime implementation
+  remains a single dependency-free HTML file. Existing state/SSE and playbook/push endpoints retained.
+- JavaScript parser (`node --check` on the extracted inline script and `tests/workspace_browser.mjs`),
+  Python compilation of changed Python files, and `git diff --check`: passed.
+- `python3 -m unittest tests.test_ui tests.test_page_smoke`: **15 passed**. The existing API proof
+  exercises custom instruction injection into both turn and worker, active-document deletion refusal,
+  and secret rejection. Existing browser tests exercise Sessions, worker Cancel, confirmed external
+  End, protected services, and 1440/390 renders without invoking a real vendor.
+- New native-CDP browser proof uses independent HTTP fixtures at widths **1440, 1000, 390, 320**:
+  initial history has no arrival animation; new HTTP messages animate; unchanged polling retains card
+  nodes; an exchange opens its feed task; tabs/keyboard/focus containment/return; six Codex effort
+  choices; subscribed alerts fit; light/dark render; invalid file stays local; drag/drop upload does
+  not activate; Use playbook sends only the selected playbook; unrelated settings save preserves it;
+  busy selection is held; 100 messages leave three cards and bounded comets; literal markup stays
+  text; collapsed/hidden views clear the queue; reduced motion preserves text without visible travel.
+- Visual inspection found worker role chips clipped at the bottom of the compact map; increased the
+  desktop map height to 252px. The screenshot's alert overflow is covered by enabled-status control
+  bounds checks. Early browser proof caught a test-driver focus assumption; clicks now focus their
+  target as an actual interaction does. CDP's media-query event delivery was intermittent, so the
+  reduced-motion proof checks browser media state and visible animation behavior instead of an
+  internal CSS class. Final combined suite passed with that independent visual oracle.
+- Fixture-only reference renders (no live prompts or results):
+  [desktop](screenshots/ui-0.5-desktop.png), [phone preferences](screenshots/ui-0.5-phone-preferences.png),
+  [phone playbook library](screenshots/ui-0.5-phone-library.png).
+- Size: approximately 175 KB HTML versus 151 KB before; about 44 KB versus 38 KB if compressed.
+  No new runtime dependency, image/font asset, polling interval, or paid model call. This is a bounded
+  workload/design check, not a device battery benchmark.
+- Private deployment: restart only after observing idle orchestrator and zero workers. Live Chromium
+  through Tailscale HTTPS at 390×844: secure context, UI 0.5.0/core 0.3.0, WISDOM still selected, three
+  exchange cards, both menus fit, zero mutation requests and JavaScript errors. Push ready, pending=0,
+  failed=0, error=null. The existing Android subscription remains; no new alert was sent for this pass.
+
+The actual Android alert-delivery witness is PHONE-01 above; this refresh was inspected in Chromium
+emulation and on the private served page. Reload the installed app to load the new HTML.
