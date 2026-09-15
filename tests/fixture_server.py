@@ -120,7 +120,8 @@ class Fixture:
             "playbooks": [{"slug":"wisdom","name":"WISDOM","builtin":True},{"slug":"none","name":"None","builtin":True},{"slug":"review-guide","name":"Review guide","summary":"Review evidence before changing code","sha256":"a"*64,"bytes":2048,"uploaded_at":iso(500)}],
             "teams": [{"slug":"solo","name":"Solo","builtin":True,"team":{"mode":"suggest","roles":[]}}],
             "today": {"turns":4,"delegations":8,"tokens":12750,"ok_rate":.875,"p50_duration_ms":4000},
-            "live_sessions": [{"pid": 17665, "name": "bso-a6", "status": "busy", "cwd": "/home/user", "kind": "interactive"}, {"pid": 1035395, "name": "projects-e8", "status": "idle", "cwd": "/home/user/projects", "kind": "interactive"}],
+            "workers": [{"id":"dlg_active", "to":"claude", "model":"sonnet", "label":"Skeptic", "cwd":"/home/user/projects", "status":"running", "turn_id":"t_a3c7cc33"}] if self.busy else [],
+            "live_sessions": [{"id":"s_" + "a" * 32, "pid": 17665, "vendor":"claude", "source":"external", "can_end":True, "name": "bso-a6", "status": "busy", "cwd": "/home/user", "kind": "interactive"}, {"id":"s_" + "b" * 32, "pid": 1035395, "vendor":"codex", "source":"external", "can_end":False, "name": "Codex service", "status": "running", "cwd": "/home/user/projects", "kind": "service"}],
             "harness": {"blockers": ["tailscale: NeedsLogin (SSH fallback unavailable; user: `sudo tailscale up --ssh`)"],
                         "units": {"claude-remote-control.service": "active", "codex-remote-control.service": "active"}, "wisdom": {"root_code": "ok", "build_id": "fixture"}},
         }
@@ -163,6 +164,8 @@ def make_handler(fx: Fixture):
                 if fx.scenario == "offline-after-first" and fx.calls >= 2:
                     self.send_response(500); self.end_headers(); return
                 return self._json(200, fx.stats())
+            if p == '/api/push':
+                return self._json(200, {'available':False, 'error':'fixture does not send notifications'})
             self._json(404, {"error": "not found"})
 
         def do_POST(self):  # noqa: N802
@@ -173,6 +176,10 @@ def make_handler(fx: Fixture):
                 return self._json(200, fx.state()["orchestrator"])
             if self.path == "/api/delegate":
                 return self._json(202, {"id": "dlg_new", "status": "started"})
+            if self.path == '/api/delegate/dlg_active/cancel':
+                return self._json(202, {'id':'dlg_active','status':'stopping'})
+            if self.path == '/api/sessions/s_' + 'a'*32 + '/end':
+                return self._json(202, {'status':'ending'})
             self._json(404, {"error": "not found"})
 
     return H

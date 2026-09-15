@@ -7,6 +7,7 @@ StartLimitIntervalSec=0
 [Service]
 Type=simple
 Environment=PATH=@HOME@/.local/share/mise/shims:@HOME@/.local/bin:/usr/local/bin:/usr/bin
+EnvironmentFile=-@HOME@/.config/agent-harness/ui.env
 WorkingDirectory=@HOME@/GitHub/Projects
 ExecStart=@UI_REPO@/bin/harness-ui serve --port 7788
 Restart=always

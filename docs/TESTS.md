@@ -111,3 +111,36 @@ The vendor help census timed out; no new per-model support claim is made. Notifi
 actual phone home-screen installation are browser/OS actions, not exercised by headless Chromium. SSE
 reconnects after 55 seconds and uses polling for catch-up; token enforcement is optional and currently off.
 The real server was restarted only after confirming it was idle, using its verified PID; no service enabled.
+
+
+## PHONE-01 — private phone control (2026-09-15; UI 0.4.0 / core 0.3.0)
+
+User authorized all four enhancements and private deployment. The user completed account login and
+Tailscale HTTPS consent. No paid model probes, public hosting, or live external-session termination.
+
+- `python3 -m unittest tests.test_ui`: 12 passed. Direct receipt assertions match the requested ID,
+  so an older cancelled worker cannot be mistaken for the new delegation.
+- Private venv `python -m unittest tests.test_mobile`: 5 passed. HTTP identity/origin, individual worker
+  cancellation and typed receipt, real external-session ending, stale identity/service refusal, and
+  orchestrator End refusing a busy turn while preserving history.
+- Private venv `python -m unittest tests.test_push`: 5 passed. Durable restart/retry, partial append,
+  attention receipt, expiry, unsubscribe, permanent failure, endpoint guards, and real Web Push
+  encryption/decryption with an independently held recipient key. Redirects disabled; finite timeout.
+  No provider call in this suite.
+- `python3 -m unittest tests.test_page_smoke`: 2 passed, each at 1440x900 and 390x844. Native Node/CDP
+  checks Sessions, Cancel, confirmation decline/accept, protected service rows, settings, no horizontal
+  overflow, and no JavaScript exceptions.
+- Identity mutation: replace `access.authorized` with always-true. The HTTP proof fails at the intended
+  account boundary (`200 != 403`), with no unrelated errors.
+- Live HTTPS: API, manifest, PNG, and service worker returned 200. Live Chromium at 390x844 reported
+  a secure context, 390px document width, active service worker, push readiness, and zero JS exceptions.
+  Private screenshot: `/tmp/harness-live-browser-bbd1kmsz/phone-sessions.png` (outside this public repo).
+- **Android witness:** user confirmed “App loaded and alert arrived” after install/subscribe/test/home
+  screen instructions. This proves actual display on the phone, beyond provider acceptance.
+- Restart: UI service enabled/active, HTTPS recovered at UI 0.4.0/core 0.3.0; push public key and one
+  subscription preserved; pending=0, failed=0, error=null.
+- Python/JavaScript syntax and `git diff --check` passed. Optional `pywebpush==2.3.0` installed in a private
+  venv. Keys/subscriptions/config stay outside Git. No external session was ended to test the controls.
+
+Residual: delivery still depends on browser/provider/Android settings. The app needs an awake, connected
+computer. This device witness is not a guarantee under every network/OS condition.

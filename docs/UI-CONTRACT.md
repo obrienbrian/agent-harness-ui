@@ -163,3 +163,34 @@ URLs. Host checks remain; mutation requests also validate Origin, require JSON f
 120 mutations per minute. HTML has fresh CSP nonces for script/style blocks; existing style attributes
 remain allowed. `/manifest.webmanifest`, `/icon.svg`, and `/sw.js` are public shell assets. The service
 worker never caches API data or credentials. Browser notifications require user permission via Settings.
+
+## Phone control additions — 2026-09-15
+
+These supersede the host-only and foreground-notification descriptions above. The listener stays on
+loopback. `HARNESS_UI_ORIGIN` + `HARNESS_UI_TAILSCALE_USER` opts into one exact HTTPS origin and one
+verified Serve identity. The remote page/assets also require that identity. Wrong identity/Host returns
+403; mutation Origin must match HTTPS. Local access retains its optional bearer-token flow.
+
+- State gains `workers: [{id,to,model,label,cwd,class,turn_id,started_at,status,process}]`. Clients cancel
+  using `id`; `process` is a Linux identity, not a client-selected PID.
+- `live_sessions` includes external Claude/Codex processes and adds `id`, `vendor`, `source`, `can_end`,
+  `observed_at`. IDs bind boot/PID/start time. Managed workers are excluded; services have `can_end:false`.
+- `POST /api/sessions/<id>/end {}` → 202 ending; 409 stale/ended; 403 service. Uses verified pidfd SIGTERM;
+  retains transcripts. A bare PID is not accepted.
+- `POST /api/orchestrator/end {}` → 200 ended; 409 busy. Clears the saved session, retaining history.
+  Start/end are serialized so ending an idle session cannot race with a new turn.
+- `POST /api/delegate/<id>/cancel {}` → 202 stopping; 409 finished/unknown. Cancels the isolated worker
+  process group and persists `HARNESS_WORKER_CANCELLED`. Applies to direct/resumed/MCP workers. Turn Stop
+  also cancels its workers. Orphan reconciliation preserves a `HARNESS_WORKER_INTERRUPTED` receipt.
+- Completed turns append `status` messages with `meta.notification: complete|attention` and `turn_id`.
+  Stopped turns do not alert. Direct receipts trigger alerts except for user cancellations.
+- `GET /api/push` → readiness, public VAPID key, subscription/pending/failed counts, generic error.
+- `POST /api/push/subscribe {subscription}` → 201 `{id,enabled:true}`. Valid encryption keys and trusted
+  Google/Mozilla/Apple HTTPS endpoints required; at most 16 devices. Endpoints/keys stay private.
+- `POST /api/push/unsubscribe {id}` → 200; removes subscription/queued jobs.
+- `POST /api/push/test {id}` → 202 queued; 404 unregistered. Push uses normal auth/Origin guards; missing
+  optional runtime → 503, without affecting ordinary use.
+
+The manifest has a stable ID, standalone display, and 192/512 PNG icons. The service worker handles push
+and clicks without caching APIs. Payloads contain generic text and a local saved-work link. Background
+display requires the phone owner to subscribe and grant OS permission.

@@ -1,0 +1,2 @@
+# Optional server dependency; the page and non-push server remain dependency-free.
+pywebpush==2.3.0

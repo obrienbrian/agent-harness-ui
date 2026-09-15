@@ -1,3 +1,17 @@
+# Agent Harness UI 0.4.0
+
+Released and deployed locally on 2026-09-15. Requires Agent Harness core 0.3.0.
+
+- Private HTTPS through Tailscale, restricted to the configured account; automatic UI startup.
+- **Sessions** drawer separates harness/external sessions, with graceful End and retained history.
+- **Cancel worker** stops individual direct, resumed, or orchestrator-delegated workers.
+- Encrypted background push with durable retries, test/disable controls, and saved-work links.
+- Android installation icons and touch controls. See [phone instructions](PHONE.md).
+
+Tests cover OS process trees, HTTP identity/origin checks, real encryption/decryption, restart/retry, and
+desktop/phone browser controls. The user confirmed that the Android app loaded and the background test
+notification arrived. No paid model probes.
+
 # Agent Harness UI 0.3.0
 
 Released locally on 2026-09-15. Requires Agent Harness core 0.2.0.

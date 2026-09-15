@@ -1,6 +1,9 @@
 # agent-harness-ui
 
-Current release: **0.3.0**, with core **0.2.0**. See [release notes](docs/RELEASE-NOTES.md).
+Current release: **0.4.0**, with core **0.3.0**. See [release notes](docs/RELEASE-NOTES.md).
+
+This release adds private phone access, session controls, worker cancellation, and background push.
+See [phone setup and daily use](docs/PHONE.md). The private app and Android test notification were verified.
 
 Loopback web UI for [agent-harness](../agent-harness): a live **orchestration graph** (the orchestrator on top, its
 workers beneath, a comet travelling along the edge for every hop, working rings and elapsed counters while a
@@ -22,8 +25,9 @@ bin/harness-ui install-unit    # writes ~/.config/systemd/user/harness-ui.servic
 The core package is found via `AGENT_HARNESS_ROOT`, else the sibling `../agent-harness`, else
 `~/GitHub/Projects/Personal/agent-harness`. The core CLI's `harness ui` simply execs this launcher.
 
-From a phone: `ssh -L 7788:127.0.0.1:7788 <host>` over Tailscale, then open http://127.0.0.1:7788. The server never
-binds a non-loopback address and rejects requests whose `Host` header is not localhost.
+From a phone: use the configured Tailscale Serve HTTPS address. The server still binds loopback and accepts
+the exact configured remote hostname only for the authorized Tailscale account. An SSH local forward is
+available as a fallback. See [PHONE.md](docs/PHONE.md).
 
 ## Layout
 

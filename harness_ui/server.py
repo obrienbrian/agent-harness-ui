@@ -6,7 +6,6 @@ from __future__ import annotations
 import json
 import os
 import secrets
-import hmac
 import re
 import collections
 import subprocess
@@ -19,9 +18,10 @@ from urllib.parse import parse_qs, urlparse
 from harness import __version__ as core_version
 from harness import orchestrator as orch
 from harness.receipts import now_iso, load_receipt, safe_data
-from harness import playbooks, teams, events
+from harness import playbooks, teams, events, workers
 
 from . import __version__
+from . import access, sessions, icons
 
 INDEX = Path(__file__).with_name("index.html")
 FALLBACK = b"<!doctype html><title>agent-harness</title><body style='font-family:sans-serif;background:#111;color:#ddd;padding:2rem'>" \
@@ -48,7 +48,10 @@ class Cache:
                 val = []
             with self.lock:
                 self.live = (time.time(), val)
-        return val
+        managed = {r['process']['pid'] for r in workers.active() if r.get('process')}
+        with orch.REGISTRY.lock:
+            managed.update(p.pid for p in orch.REGISTRY.processes.values())
+        return sessions.discover(val, managed)
 
     def harness_status(self) -> dict:
         with self.lock:
@@ -85,7 +88,7 @@ def state_view() -> dict:
     o = {k: cfg.get(k) for k in ("vendor", "model", "effort", "name", "session_ref", "cwd", "turns", "playbook", "team")}
     o.update(busy=busy, current_turn=orch.REGISTRY.current if busy else None, options=orch.options())
     return {"as_of": now_iso(), "version": __version__, "core_version": core_version, "orchestrator": o, "agents": orch.agents_view(msgs, cfg, busy),
-            "messages": msgs, "playbooks": playbooks.catalog(), "teams": teams.catalog(), "today": orch.today_stats(), "live_sessions": CACHE.live_sessions(), "harness": CACHE.harness_status()}
+            "messages": msgs, "playbooks": playbooks.catalog(), "teams": teams.catalog(), "today": orch.today_stats(), "live_sessions": CACHE.live_sessions(), "workers": workers.active(), "harness": CACHE.harness_status()}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -111,20 +114,15 @@ class Handler(BaseHTTPRequestHandler):
         self._send(code, json.dumps(obj, sort_keys=True).encode("utf-8"))
 
     def _host_ok(self) -> bool:
-        host = (self.headers.get("Host") or "").split(":")[0].strip().lower()
-        if host.startswith("[") and "]" in (self.headers.get("Host") or ""):
-            host = (self.headers.get("Host") or "").split("]")[0].lower() + "]"
-        return host in LOOPBACK_HOSTS
+        return access.host_ok(self.headers)
 
     def _authorized(self) -> bool:
-        token = os.environ.get("HARNESS_UI_TOKEN", "")
-        return not token or hmac.compare_digest(self.headers.get("Authorization", "").encode(), ("Bearer " + token).encode())
+        return access.authorized(self.headers)
 
     def _mutation_ok(self) -> bool:
         if not self._host_ok():
             self._json(403, {"error": "loopback only"}); return False
-        origin = self.headers.get("Origin")
-        if origin and origin != "http://" + self.headers.get("Host", "") and origin != "https://" + self.headers.get("Host", ""):
+        if not access.origin_ok(self.headers):
             self._json(403, {"error": "origin rejected"}); return False
         if not self._authorized():
             self._json(401, {"error": "authentication required"}); return False
@@ -156,19 +154,23 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):  # noqa: N802
         if not self._host_ok():
             return self._json(403, {"error": "loopback only"})
+        if access.is_remote(self.headers) and not self._authorized():
+            return self._json(403, {"error": "this Tailscale account is not allowed"})
         u = urlparse(self.path)
         if u.path in ("/", "/index.html"):
             body = INDEX.read_text() if INDEX.is_file() else FALLBACK.decode()
             self.nonce = secrets.token_urlsafe(24)
             body = body.replace("<script>", f'<script nonce="{self.nonce}">').replace("<style>", f'<style nonce="{self.nonce}">')
-            body = body.replace('<html', '<html data-token-required="' + ("true" if os.environ.get("HARNESS_UI_TOKEN") else "false") + '"', 1)
+            body = body.replace('<html', '<html data-token-required="' + ("true" if os.environ.get("HARNESS_UI_TOKEN") and not access.is_remote(self.headers) else "false") + '"', 1)
             return self._send(200, body.encode(), "text/html; charset=utf-8")
         if u.path in ("/manifest.json", "/manifest.webmanifest"):
-            return self._send(200, json.dumps({"name": "Agent Harness", "short_name": "Harness", "start_url": "/", "display": "standalone", "background_color": "#111413", "theme_color": "#111413", "icons": [{"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}]}).encode(), "application/manifest+json")
+            return self._send(200, json.dumps({"id": "/", "name": "Agent Harness", "short_name": "Harness", "start_url": "/", "scope": "/", "display": "standalone", "background_color": "#111413", "theme_color": "#111413", "icons": [{"src": f"/icon-{size}.png", "sizes": f"{size}x{size}", "type": "image/png", "purpose": "any maskable"} for size in (192, 512)]}).encode(), "application/manifest+json")
+        if u.path in ('/icon-180.png', '/icon-192.png', '/icon-512.png'):
+            return self._send(200, icons.png(int(u.path[6:-4])), 'image/png')
         if u.path == "/icon.svg":
             return self._send(200, b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="38" fill="#111413"/><path d="M50 45v102m92-102v102M50 96h92" stroke="#4fc3a1" stroke-width="20"/></svg>', "image/svg+xml")
         if u.path == "/sw.js":
-            return self._send(200, b"self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));", "text/javascript")
+            return self._send(200, SW.encode(), "text/javascript")
         if not self._authorized():
             return self._json(401, {"error": "authentication required"})
         if u.path == "/api/events":
@@ -188,6 +190,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, safe_data(rec)) if rec else self._json(404, {"error": "unknown receipt"})
         if u.path == "/api/state":
             return self._json(200, state_view())
+        if u.path == "/api/push":
+            push = getattr(self.server, 'push', None)
+            return self._json(200, push.status() if push else {"available": False, "error": "background notifications are not configured"})
         if u.path == "/api/stats":
             q = parse_qs(u.query)
             try:
@@ -207,6 +212,39 @@ class Handler(BaseHTTPRequestHandler):
         body = self._body()
         if body is None:
             return self._json(400, {"error": "body must be a JSON object"})
+        if u.path.startswith('/api/push/'):
+            push = getattr(self.server, 'push', None)
+            if not push:
+                return self._json(503, {"error": "background notifications are not configured"})
+            try:
+                if u.path == '/api/push/subscribe':
+                    return self._json(201, push.subscribe(body.get('subscription')))
+                if u.path == '/api/push/unsubscribe':
+                    push.unsubscribe(body.get('id'))
+                    return self._json(200, {'enabled': False})
+                if u.path == '/api/push/test':
+                    push.test(body.get('id'))
+                    return self._json(202, {'status': 'queued'})
+            except (ValueError, TypeError) as exc:
+                return self._json(400, {'error': str(exc)})
+            except KeyError:
+                return self._json(404, {'error': 'enable notifications on this device first'})
+        match = re.fullmatch(r"/api/sessions/(s_[a-f0-9]{32})/end", u.path)
+        if match:
+            try:
+                return self._json(202, sessions.end(match[1]))
+            except KeyError:
+                return self._json(409, {"error": "session ended or changed; refresh the list"})
+            except PermissionError as exc:
+                return self._json(403, {"error": str(exc)})
+        match = re.fullmatch(r"/api/delegate/([^/]+)/cancel", u.path)
+        if match:
+            try:
+                return self._json(202, workers.cancel(match[1]))
+            except KeyError:
+                return self._json(409, {"error": "worker already finished; refresh the list"})
+            except ValueError as exc:
+                return self._json(400, {"error": str(exc)})
         if u.path in ("/api/playbooks", "/api/teams"):
             try:
                 with orch._lock:
@@ -248,6 +286,12 @@ class Handler(BaseHTTPRequestHandler):
             o = {k: cfg.get(k) for k in ("vendor", "model", "effort", "name", "session_ref", "cwd", "turns", "playbook", "team")}
             o.update(busy=orch.REGISTRY.busy(), options=orch.options())
             return self._json(200, o)
+        if u.path == '/api/orchestrator/end':
+            try:
+                orch.end_session()
+                return self._json(200, {'status': 'ended'})
+            except orch.Busy as exc:
+                return self._json(409, {'error': str(exc)})
         if u.path == "/api/say":
             try:
                 tid = orch.start_turn(body.get("text"))
@@ -319,20 +363,61 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def make_server(host: str = "127.0.0.1", port: int = 7788) -> ThreadingHTTPServer:
+    access.remote_origin()  # fail closed on incomplete remote configuration
     if host not in LOOPBACK_HOSTS:
         raise ValueError("the harness UI binds loopback only; reach it remotely through an SSH/Tailscale tunnel")
     srv = ThreadingHTTPServer((host, port), Handler)
     srv.daemon_threads = True
+    srv.push = None
     return srv
 
 
 def serve(host: str = "127.0.0.1", port: int = 7788) -> int:
     srv = make_server(host, port)
+    if os.environ.get('HARNESS_UI_PUSH') == '1':
+        import pywebpush  # optional dependency; configuration errors fail visibly
+        from .push import Push
+        srv.push = Push()
+        srv.push.start()
+    stopping = threading.Event()
+    def maintain():
+        while not stopping.is_set():
+            workers.reap_orphans()
+            stopping.wait(2)
+    threading.Thread(target=maintain, name='worker-reconciliation', daemon=True).start()
     print(f"agent-harness UI on http://{host}:{srv.server_address[1]}/  (loopback only; Ctrl-C to stop)", flush=True)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
+        stopping.set()
+        if srv.push:
+            srv.push.close()
         srv.server_close()
     return 0
+
+
+SW = """
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+self.addEventListener('push', e => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch (_) {}
+  e.waitUntil(self.registration.showNotification(data.title || 'Harness update', {
+    body: data.body || 'Open Harness to review the details.', icon: '/icon-192.png',
+    tag: data.tag || 'harness-update', data: {url: data.url || '/'}
+  }));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = new URL(e.notification.data && e.notification.data.url || '/', self.location.origin);
+  if (url.origin !== self.location.origin) return;
+  e.waitUntil(self.clients.matchAll({type:'window', includeUncontrolled:true}).then(async clients => {
+    for (const client of clients) {
+      if (new URL(client.url).origin === url.origin) { await client.navigate(url.href); return client.focus(); }
+    }
+    return self.clients.openWindow(url.href);
+  }));
+});
+"""

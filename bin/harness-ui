@@ -23,6 +23,10 @@ def core_root() -> pathlib.Path | None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # An optional private venv supplies Web Push; core and UI need no install.
+    runtime = pathlib.Path(os.environ.get('HARNESS_UI_PYTHON', pathlib.Path.home() / '.local/share/agent-harness-ui/venv/bin/python'))
+    if runtime.is_file() and sys.prefix == sys.base_prefix and os.environ.get('HARNESS_UI_PUSH') == '1':
+        os.execv(str(runtime), [str(runtime), str(pathlib.Path(__file__).resolve()), *sys.argv[1:]])
     ap = argparse.ArgumentParser(prog="harness-ui")
     sub = ap.add_subparsers(dest="cmd")
     sv = sub.add_parser("serve", help="serve the loopback UI (default)")

@@ -76,6 +76,7 @@ def setUpModule():
 
 def tearDownModule():
     SRV.shutdown()
+    SRV.server_close()
 
 
 def call(method: str, path: str, body: dict | None = None, host: str | None = None):
@@ -194,7 +195,7 @@ class Api(unittest.TestCase):
             self.assertNotIn(banned, script, banned)
         self.assertEqual(set(re.findall(r"https?://[^\"' )]+", src)), {"http://www.w3.org/2000/svg"})
         endpoints = set(re.findall(r"'(/api/[a-z]+)", script))
-        self.assertEqual(endpoints, {"/api/state", "/api/stats", "/api/orchestrator", "/api/say", "/api/delegate", "/api/playbooks", "/api/teams", "/api/turn", "/api/receipt", "/api/turns", "/api/events"})
+        self.assertEqual(endpoints, {"/api/state", "/api/stats", "/api/orchestrator", "/api/say", "/api/delegate", "/api/playbooks", "/api/teams", "/api/turn", "/api/receipt", "/api/turns", "/api/events", "/api/push", "/api/sessions"})
         self.assertIn('name="viewport"', src)
         self.assertIn("@media (max-width:859px)", src)
         self.assertIn("prefers-reduced-motion", src)
@@ -207,7 +208,7 @@ class Api(unittest.TestCase):
         deadline = time.time() + 15
         while time.time() < deadline:
             st, s = call("GET", "/api/state")
-            recs = [m for m in s["messages"] if m["kind"] == "receipt" and m["to"] == "user"]
+            recs = [m for m in s["messages"] if m["kind"] == "receipt" and m["to"] == "user" and (m.get('meta') or {}).get('delegation_id') == r['id']]
             if recs:
                 break
             time.sleep(0.2)

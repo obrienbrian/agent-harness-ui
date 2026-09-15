@@ -505,6 +505,10 @@
   .popover { max-height:calc(100dvh - 76px); overflow-y:auto; }
   .v2-details { margin-top:16px; border-top:1px solid var(--line); padding-top:12px; }
   .v2-details summary { cursor:pointer; min-height:44px; display:flex; align-items:center; }
+  .notification-controls { flex-wrap:wrap; }
+  .notification-controls button { white-space:normal; }
+  .v2-role p { overflow-wrap:anywhere; }
+  .v2-search button { min-height:44px; }
   .v2-row { display:flex; align-items:center; gap:8px; margin:6px 0; }
   .v2-row > :first-child { flex:1; min-width:0; }
   .v2-row > .input { flex:1; width:auto; min-width:0; }
@@ -591,7 +595,7 @@
       <div class="graph-foot" id="graph-foot" hidden></div>
     </section>
 
-    <div class="v2-search"><input class="input" id="feed-search" type="search" placeholder="Search feed" aria-label="Search feed"><button class="btn secondary" id="history-btn" type="button">History</button></div>
+    <div class="v2-search"><input class="input" id="feed-search" type="search" placeholder="Search feed" aria-label="Search feed"><button class="btn secondary" id="all-sessions-btn" type="button">Sessions</button><button class="btn secondary" id="history-btn" type="button">History</button></div>
     <div class="feedwrap">
       <div class="feed" id="feed" aria-live="polite" aria-relevant="additions">
         <div class="feed-inner" id="feed-inner"></div>
@@ -641,12 +645,12 @@
     <div class="field"><div class="caps">Working directory</div><input class="input mono" id="set-cwd" type="text" placeholder="/abs/path" autocomplete="off" spellcheck="false"></div>
     <details class="v2-details"><summary>Playbook</summary><div id="set-playbooks"></div><label class="caps" for="playbook-upload">Upload markdown</label><input class="input" id="playbook-upload" type="file" accept=".md,text/markdown"><div class="v2-meta">Up to 256 KB. Selecting a new playbook starts a fresh session.</div></details>
     <details class="v2-details"><summary>Team</summary><label class="caps" for="team-preset">Preset</label><select class="input" id="team-preset"></select><div class="v2-row"><label for="team-mode">Role rules</label><select class="input" id="team-mode"><option value="suggest">Suggested roles</option><option value="strict">Only these roles</option></select></div><div id="team-roles"></div><button class="btn secondary" type="button" id="team-add">Add role</button><div class="v2-row"><input class="input" id="team-name" placeholder="Preset name" aria-label="Preset name"><button class="btn secondary" type="button" id="team-save">Save preset</button></div><button class="btn secondary" type="button" id="team-delete">Delete preset</button></details>
-    <div class="v2-row"><button class="btn secondary" type="button" id="notify-btn">Enable completion alerts</button></div>
+    <div class="v2-row notification-controls"><button class="btn secondary" type="button" id="notify-btn">Enable background alerts</button><button class="btn secondary" type="button" id="notify-test" hidden>Send test alert</button><button class="btn secondary" type="button" id="notify-off" hidden>Disable alerts</button></div>
     <div class="noteline">Model and effort take effect on the next turn.</div>
     <div class="actions">
       <button type="button" class="btn tall" id="apply-btn">Apply</button>
       <button type="button" class="btn tall secondary" id="reset-btn">New session</button>
-      <span class="hint" id="reset-hint">drops the session ref</span>
+      <span class="hint" id="reset-hint">keeps saved history</span>
     </div>
   </div>
 </div>
@@ -856,7 +860,10 @@ function pairDelegations(msgs) {
 function isPending(t, state) {
   const now = Date.now() + skewMs;
   const age = now - Date.parse(t.ts);
-  if (t.meta && t.meta.direct) return age < 30 * 60 * 1000;
+  if (t.meta && t.meta.direct) {
+    if (Array.isArray(state.workers) && t.meta.delegation_id) return state.workers.some((w) => w.id === t.meta.delegation_id);
+    return age < 30 * 60 * 1000;
+  }
   const o = state.orchestrator || {};
   if (!o.busy) return false;
   const tid = t.meta && t.meta.turn_id;
@@ -890,6 +897,7 @@ function derive(state) {
     cur.msgs.push(m);
     if (m.kind === 'tool_use') { cur.delegations++; const r = pairs.get(m.id); if (r && (r.meta || {}).root_code !== 'ok') cur.errors++; }
     if (m.kind === 'error') cur.errors++;
+    if (m.kind === 'status' && m.meta && m.meta.notification) cur.end = m.ts;
     if (m.kind === 'result') { cur.end = m.ts; const u = m.meta && m.meta.usage; if (u && typeof u === 'object' && Object.keys(u).length) cur.usage = u; }
   }
   const workers = (state.agents || []).filter((a) => a.role === 'worker');
@@ -980,7 +988,8 @@ function renderSystem(state) {
   wk.appendChild(wb); body.appendChild(wk);
   const live = state.live_sessions || [];
   body.appendChild(el('div', 'hr'));
-  body.appendChild(el('div', 'caps sub', 'Live sessions'));
+  const sessionsButton = el('button', 'btn secondary', 'Sessions & workers'); sessionsButton.id = 'sessions-btn'; sessionsButton.addEventListener('click', openSessions); body.appendChild(sessionsButton);
+  body.appendChild(el('div', 'caps sub', 'Other sessions'));
   if (!live.length) body.appendChild(el('div', 'blk muted', 'none'));
   for (const s of live) {
     const kv = el('div', 'kv'); kv.appendChild(el('span', 'k', s.name || `pid:${s.pid}`));
@@ -1283,6 +1292,9 @@ function delegationCard(t, receipt, d, isLatestTurn) {
   hd.addEventListener('click', () => { const nowOpen = card.classList.contains('collapsed'); cardOpen.set(t.id, nowOpen); card.classList.toggle('collapsed', !nowOpen); hd.setAttribute('aria-expanded', String(nowOpen)); chev.textContent = ''; chev.appendChild(icon(nowOpen ? 'up' : 'down', 9)); });
   card.appendChild(hd);
   card.appendChild(textBody(t.text, t.id, 'req'));
+  if (pending && t.meta && t.meta.delegation_id && (lastState.workers || []).some((w) => w.id === t.meta.delegation_id)) {
+    const controls = el('div','acts'); controls.appendChild(actionButton('Cancel worker', async () => { await postJSON('/api/delegate/' + encodeURIComponent(t.meta.delegation_id) + '/cancel', {}); toast('Worker stopping'); pollState(true); })); card.appendChild(controls);
+  }
   if (pending) { const sh = el('div', 'shimmer'); sh.appendChild(el('i')); sh.appendChild(el('i')); card.appendChild(sh); }
   else if (receipt) {
     const res = el('div', 'res'); res.appendChild(textBody(receipt.text || (rc === 'ok' ? '(empty result)' : rc), receipt.id));
@@ -1341,6 +1353,7 @@ function renderFeed(state, d, newMsgs) {
         col.appendChild(m.kind === 'tool_use' ? delegationCard(m, d.pairs.get(m.id), d, isLatest) : receiptOnly(m)); return;
       }
       col = null;
+      if (m.kind === 'status') { box.appendChild(el('div','v2-meta',m.text)); return; }
       if (m.kind === 'error') { box.appendChild(errRow(m)); return; }
       if (m.kind === 'text' && m.meta && m.meta.tool) { box.appendChild(noteRow(m)); return; }
       if (m.kind === 'result' && (!m.text || (m.meta && m.meta.same_as_text))) return;
@@ -1573,8 +1586,8 @@ $('apply-btn').addEventListener('click', () => {
 let resetArmed = null;
 $('reset-btn').addEventListener('click', () => {
   const btn = $('reset-btn');
-  if (!resetArmed) { resetArmed = setTimeout(() => { resetArmed = null; btn.textContent = 'New session'; btn.className = 'btn tall secondary'; $('reset-hint').textContent = 'drops the session ref'; }, 4000); btn.textContent = 'Confirm reset'; btn.className = 'btn tall warn'; $('reset-hint').textContent = 'click again to drop the session'; return; }
-  clearTimeout(resetArmed); resetArmed = null; btn.textContent = 'New session'; btn.className = 'btn tall secondary'; $('reset-hint').textContent = 'drops the session ref'; btn.disabled = true;
+  if (!resetArmed) { resetArmed = setTimeout(() => { resetArmed = null; btn.textContent = 'New session'; btn.className = 'btn tall secondary'; $('reset-hint').textContent = 'keeps saved history'; }, 4000); btn.textContent = 'Confirm reset'; btn.className = 'btn tall warn'; $('reset-hint').textContent = 'click again to drop the session'; return; }
+  clearTimeout(resetArmed); resetArmed = null; btn.textContent = 'New session'; btn.className = 'btn tall secondary'; $('reset-hint').textContent = 'keeps saved history'; btn.disabled = true;
   postJSON('/api/orchestrator', { reset: true }).then((updated) => { if (lastState) { lastState.orchestrator = Object.assign({}, lastState.orchestrator, updated); renderTopbar(lastState); } toast('Session reset', 'next turn starts fresh', 'neutral'); closeOverlay(); pollState(true); })
     .catch((err) => toast('Could not reset session', err.message, 'err')).then(() => { btn.disabled = false; });
 });
@@ -1590,6 +1603,7 @@ function palActions() {
     { group: 'Orchestrator', icon: 'lines', label: 'Set effort…', right: (((o.options || {})[o.vendor] || {}).efforts || []).join(' · '), run: () => { palMode = 'effort'; palIndex = 0; $('pal-input').value = ''; renderPalette(); return true; } },
     { group: 'Orchestrator', icon: 'arrowR', label: `Switch vendor to ${other}`, right: 'drops the session', run: () => { const op = (o.options || {})[other] || { models: [], efforts: [] }; setOrch({ vendor: other, model: op.models[0], effort: op.efforts[Math.min(2, op.efforts.length - 1)] }, `vendor → ${other}`); } },
     { group: 'Orchestrator', icon: 'refresh', label: 'New session', right: 'confirms first', run: () => { closeOverlay(); openSettings(); $('reset-btn').click(); return true; } },
+    { group: 'Work', icon: 'rect', label: 'Sessions & workers', run: () => { openSessions(); return true; } },
     { group: 'Work', icon: 'nodes', label: 'Delegate directly…', right: '/delegate', run: () => { openDelegate({}); return true; } },
     { group: 'Work', icon: 'jump', label: 'Jump to latest', right: `${k}↓`, run: () => jumpToLatest() },
     { group: 'View', icon: 'rect', label: graphCollapsed ? 'Expand graph' : 'Collapse graph', right: `${k}G`, run: () => toggleGraph() },
@@ -1690,8 +1704,7 @@ function setOffline(off, err) {
 }
 function applyState(state) {
   const now = Date.now(); skewMs = (Date.parse(state.as_of) || now) - now;
-  const wasBusy = lastState && lastState.orchestrator && lastState.orchestrator.busy;
-  if (wasBusy && !state.orchestrator.busy && document.hidden && 'Notification' in window && Notification.permission === 'granted') new Notification('Harness turn complete', {body:'Open Harness to review the result.'});
+  // Background notifications come from the durable server outbox, even when this page is closed.
   lastState = state; agentsById = new Map((state.agents || []).map((a) => [a.id, a]));
   const msgs = state.messages || []; const newMsgs = [];
   for (const m of msgs) if (!seenIds.has(m.id)) { seenIds.add(m.id); if (initialized) newMsgs.push(m); }
@@ -1723,7 +1736,7 @@ function pollStats() {
     .catch(() => { statsFresh = false; renderStats(null); }).then(() => { statsPollTimer = setTimeout(pollStats, 15000); });
 }
 $('retry-btn').addEventListener('click', () => { pollState(true); pollStats(); });
-$('loopback').textContent = ''; $('loopback').appendChild(icon('lock', 10)); $('loopback').appendChild(document.createTextNode(`loopback ${location.host || '127.0.0.1:7788'}`));
+$('loopback').textContent = ''; $('loopback').appendChild(icon('lock', 10)); $('loopback').appendChild(document.createTextNode(location.protocol === 'https:' ? 'Private connection' : 'Local connection'));
 window.addEventListener('resize', () => { fitStage(); });
 composerInput.addEventListener('input', () => { sendBtn.disabled = !composerInput.value.trim() || !!(lastState && lastState.orchestrator && lastState.orchestrator.busy); });
 
@@ -1865,12 +1878,100 @@ async function openHistory() {
   } catch (e) { box.textContent = e.message; }
 }
 $('history-btn').addEventListener('click', openHistory);
-$('notify-btn').addEventListener('click', async () => { if (!('Notification' in window)) return toast('Alerts unavailable in this browser'); const permission = await Notification.requestPermission(); toast(permission === 'granted' ? 'Completion alerts enabled' : 'Completion alerts are off'); });
+$('all-sessions-btn').addEventListener('click', openSessions);
+let pushDevice = null;
+async function refreshPush() {
+  try {
+    const info = await getJSON('/api/push');
+    $('notify-btn').disabled = !info.available;
+    $('notify-btn').title = info.error || 'Receive updates even when Harness is closed';
+    if (!info.available || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (subscription) {
+      const row = await postJSON('/api/push/subscribe', {subscription:subscription.toJSON()});
+      pushDevice = row.id;
+    } else pushDevice = null;
+    $('notify-btn').textContent = pushDevice ? 'Background alerts enabled' : 'Enable background alerts';
+    $('notify-test').hidden = !pushDevice; $('notify-off').hidden = !pushDevice;
+  } catch (_) { /* show a precise failure when the user enables or tests alerts */ }
+}
+$('notify-btn').addEventListener('click', async () => {
+  if (!('Notification' in window) || !('PushManager' in window) || !('serviceWorker' in navigator)) return toast('Background alerts unavailable', 'Open Harness in Chrome and add it to your Home screen.', 'err');
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return toast('Alerts are off', 'Allow notifications in this site’s browser settings.', 'neutral');
+    const info = await getJSON('/api/push'); if (!info.available) throw new Error(info.error);
+    const raw = atob(info.public_key.replace(/-/g,'+').replace(/_/g,'/'));
+    const key = Uint8Array.from(raw, (c) => c.charCodeAt(0));
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription() || await registration.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:key});
+    const row = await postJSON('/api/push/subscribe', {subscription:subscription.toJSON()}); pushDevice = row.id;
+    $('notify-test').hidden = false; $('notify-off').hidden = false; $('notify-btn').textContent = 'Background alerts enabled';
+    toast('Background alerts enabled', 'Use Send test alert to check delivery.');
+  } catch (e) { toast('Could not enable alerts', e.message, 'err'); }
+});
+$('notify-test').addEventListener('click', () => postJSON('/api/push/test', {id:pushDevice}).then(() => toast('Test alert queued', 'It should arrive shortly, even with this page closed.')).catch((e) => toast('Test failed',e.message,'err')));
+$('notify-off').addEventListener('click', async () => {
+  try {
+    await postJSON('/api/push/unsubscribe', {id:pushDevice});
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription(); if (subscription) await subscription.unsubscribe();
+    pushDevice = null; $('notify-test').hidden = true; $('notify-off').hidden = true; $('notify-btn').textContent = 'Enable background alerts'; toast('Background alerts disabled');
+  } catch (e) { toast('Could not disable alerts',e.message,'err'); }
+});
+function actionButton(label, action) {
+  const b = el('button','btn secondary',label); b.type = 'button';
+  b.addEventListener('click', async () => { b.disabled = true; try { await action(); } catch (e) { toast('Action failed',e.message,'err'); } finally { b.disabled = false; } });
+  return b;
+}
+async function openSessions() {
+  const box = drawer('Sessions & workers');
+  box.appendChild(el('p','','Harness work runs on your computer. Ending a session retains its saved history.'));
+  box.appendChild(actionButton('Refresh sessions', openSessions));
+  try {
+    const state = await getJSON('/api/state');
+    box.appendChild(el('h3','','Harness'));
+    const o = state.orchestrator;
+    box.appendChild(el('p','',o.vendor + ' · ' + o.model + ' · ' + (o.busy ? 'working' : 'idle')));
+    if (o.busy) box.appendChild(actionButton('Stop current turn', async () => { await postJSON('/api/turn/' + encodeURIComponent(o.current_turn) + '/stop',{}); toast('Turn stopping'); await openSessions(); }));
+    else if (o.session_ref) box.appendChild(actionButton('End orchestrator session', async () => { await postJSON('/api/orchestrator/end',{}); toast('Session ended','Your next prompt starts a new session.'); await openSessions(); }));
+    for (const w of state.workers || []) {
+      const card = el('div','v2-role'); card.append(el('strong','',w.label || w.model || w.to), el('p','v2-meta',w.status + ' · ' + (w.turn_id ? 'delegated by orchestrator' : 'direct delegation')), el('p','v2-meta',w.cwd));
+      card.appendChild(actionButton('Cancel worker', async () => { await postJSON('/api/delegate/' + encodeURIComponent(w.id) + '/cancel',{}); toast('Worker stopping'); await openSessions(); })); box.appendChild(card);
+    }
+    box.appendChild(el('h3','','Other Claude & Codex sessions'));
+    box.appendChild(el('p','v2-meta','These were opened outside this harness. Review the location before ending one. Shared services have no End control.'));
+    if (!(state.live_sessions || []).length) box.appendChild(el('p','','No other sessions found.'));
+    for (const s of state.live_sessions || []) {
+      const card = el('div','v2-role'); card.append(el('strong','',s.name), el('p','v2-meta',s.vendor + ' · ' + s.kind + ' · ' + s.status), el('p','v2-meta',s.cwd));
+      if (s.can_end) card.appendChild(actionButton('End session', async () => {
+        if (!window.confirm('End ' + s.name + ' in ' + s.cwd + '? Running work in this session will stop. Saved history is kept.')) return;
+        await postJSON('/api/sessions/' + encodeURIComponent(s.id) + '/end',{}); toast('Session ending'); await openSessions();
+      }));
+      box.appendChild(card);
+    }
+  } catch (e) { box.appendChild(el('p','err',e.message)); }
+}
+
 $('auth-form').addEventListener('submit', async (e) => {
   e.preventDefault(); accessToken = $('auth-token').value;
   try { await getJSON('/api/state'); try { sessionStorage.setItem('harness-token',accessToken); } catch (_) {} $('auth-token').value = ''; $('v2-auth').hidden = true; startConnection(); }
   catch (_) { $('auth-error').textContent = 'Token not accepted. Try again.'; }
 });
+async function openNotificationTarget() {
+  const match = /^#(receipt|turn)=([a-zA-Z0-9_-]{1,100})$/.exec(location.hash);
+  if (!match) return;
+  if (match[1] === 'receipt') return openReceipt(match[2]);
+  try {
+    const turn = await getJSON('/api/turn/' + encodeURIComponent(match[2]));
+    const box = drawer('Saved turn');
+    box.appendChild(el('p','',turn.status));
+    box.appendChild(actionButton('Export markdown', () => exportMarkdown(turn,turn.messages || [])));
+    for (const m of turn.messages || []) box.append(el('div','v2-meta',m.from + ' → ' + m.to), el('pre','',m.text));
+  } catch (e) { toast('Could not open saved work',e.message,'err'); }
+}
+window.addEventListener('hashchange',openNotificationTarget);
 function refreshAfterEvent() { if (!streamRefresh) streamRefresh = setTimeout(() => { streamRefresh = null; pollState(true); }, 80); }
 async function connectEvents() {
   if (streaming) return; streaming = true; streamController = new AbortController();
@@ -1897,8 +1998,9 @@ async function connectEvents() {
   } catch (_) { /* regular state polling remains available */ }
   finally { streaming = false; if (!$('v2-auth').hidden) return; setTimeout(connectEvents,2000); }
 }
-function startConnection() { pollState(true); pollStats(); connectEvents(); }
+function startConnection() { pollState(true); pollStats(); connectEvents(); refreshPush(); openNotificationTarget(); }
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+const touchIcon = el('link'); touchIcon.rel = 'apple-touch-icon'; touchIcon.href = '/icon-180.png'; document.head.appendChild(touchIcon);
 const manifest = el('link'); manifest.rel = 'manifest'; manifest.href = '/manifest.webmanifest'; document.head.appendChild(manifest);
 
 /* ================= init ================= */
