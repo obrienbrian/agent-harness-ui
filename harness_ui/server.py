@@ -85,7 +85,7 @@ def state_view() -> dict:
     cfg = orch.load_cfg()
     busy = orch.REGISTRY.busy()
     msgs = orch.read_messages(300, cfg.get('feed_offset', 0))
-    o = {k: cfg.get(k) for k in ("vendor", "model", "effort", "name", "session_ref", "cwd", "turns", "playbook", "team", "feed_offset")}
+    o = {k: cfg.get(k) for k in ("vendor", "model", "effort", "name", "session_ref", "cwd", "turns", "playbook", "team", "feed_offset", "permissions")}
     o.update(busy=busy, current_turn=orch.REGISTRY.current if busy else None, options=orch.options())
     return {"as_of": now_iso(), "version": __version__, "core_version": core_version, "orchestrator": o, "agents": orch.agents_view(msgs, cfg, busy),
             "messages": msgs, "goal": orch.goal_view(), "playbooks": playbooks.catalog(), "teams": teams.catalog(), "today": orch.today_stats(), "live_sessions": CACHE.live_sessions(), "workers": workers.active(), "harness": CACHE.harness_status()}
@@ -305,7 +305,7 @@ class Handler(BaseHTTPRequestHandler):
             cfg, err = orch.update_cfg(body)
             if err:
                 return self._json(400, {"error": err})
-            o = {k: cfg.get(k) for k in ("vendor", "model", "effort", "name", "session_ref", "cwd", "turns", "playbook", "team")}
+            o = {k: cfg.get(k) for k in ("vendor", "model", "effort", "name", "session_ref", "cwd", "turns", "playbook", "team", "permissions")}
             o.update(busy=orch.REGISTRY.busy(), options=orch.options())
             return self._json(200, o)
         if u.path == '/api/orchestrator/end':

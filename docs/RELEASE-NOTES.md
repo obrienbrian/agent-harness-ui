@@ -1,3 +1,14 @@
+# Agent Harness UI 0.7.0
+
+Release date: 2026-09-16.
+
+Session setup → Agent now includes a Permissions selector: Full access · no
+approvals (default), Workspace · restricted, and Read only. It shares core 0.5.0's
+policy across orchestrators, native goals and workers. Busy work disables changes;
+a saved change starts a fresh session while retaining history. `/status` includes
+the selected policy. Desktop and 390/320px browser checks cover saving, persistence,
+busy rejection and layout. See docs/TESTS.md.
+
 # Agent Harness UI 0.6.0
 
 Released locally on 2026-09-15. Requires Agent Harness core 0.4.0 and installed Codex with native goal support (verified with 0.154.0).

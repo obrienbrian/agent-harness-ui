@@ -105,6 +105,25 @@ def wait_turn(tid: str, timeout: float = 15.0) -> dict:
 
 
 class Api(unittest.TestCase):
+    def test_permission_setting_round_trip_and_busy_rejection(self):
+        from unittest.mock import patch
+        try:
+            st, cfg = call('POST', '/api/orchestrator', {'permissions':'workspace'})
+            self.assertEqual(st, 200, cfg)
+            self.assertEqual(cfg['permissions'], 'workspace')
+            self.assertIsNone(cfg['session_ref'])
+            st, state = call('GET', '/api/state')
+            self.assertEqual(state['orchestrator']['permissions'], 'workspace')
+            self.assertEqual(len(state['orchestrator']['options']['permissions']), 3)
+            with patch.object(orch.REGISTRY, 'busy', return_value=True):
+                st, cfg = call('POST', '/api/orchestrator', {'permissions':'full-access'})
+                self.assertEqual(st, 400)
+            self.assertEqual(orch.load_cfg()['permissions'], 'workspace')
+            for value in ('invalid', None, True, {}):
+                self.assertEqual(call('POST','/api/orchestrator',{'permissions':value})[0], 400)
+        finally:
+            call('POST','/api/orchestrator',{'permissions':'full-access'})
+
     def test_index_and_state_shape(self):
         st, body = call("GET", "/")
         self.assertEqual(st, 200)

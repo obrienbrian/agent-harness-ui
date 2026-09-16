@@ -213,3 +213,52 @@ Criteria: HELP-GOAL-01 in core and UI 0.6.0 additions in DESIGN-SPEC/UI-CONTRACT
 
 Rollback: revert this release and core 0.4.0 together to UI 0.5.0/core 0.3.0, then restart the idle user
 service. Durable history, push subscriptions and uploaded playbooks stay in their existing data dirs.
+
+## UI-07 — permissions (2026-09-15)
+
+UI 0.7.0 / core 0.5.0, PERM-01 in core docs/DESIGN.md.
+
+- API suite **16 passed**; mobile **5 passed**; Web Push **5 passed**;
+  browser suite **4 passed**. Permission HTTP round-trip, invalid values, session
+  reset and busy refusal are covered. Browser save/reopen sends only the changed
+  permission field, preserves unrelated settings, exposes only two vendors,
+  disables the selector during work and fits desktop plus 390/320px screens.
+- Inspected fixture screenshots: `/tmp/harness-permissions-shots/permissions.png`
+  and `390-permissions.png`. Reproduce with
+  `HARNESS_TEST_SCREENSHOTS=/tmp/harness-permissions-shots python3 -m unittest tests.test_page_smoke`.
+- Python/JavaScript parsing and diff checks passed. Core proof: 72 tests, including
+  actual Codex shell/network/MCP worker execution against a localhost fixture and
+  read-only rejection; full details and go-red limits in core docs/TESTS.md.
+- Restarted the idle local service after a private rollback backup. Live 390px
+  browser: versions 0.7.0/0.5.0, full-access selected, three permission choices,
+  no clipping, zero POSTs and zero JS errors. No live model prompt submitted.
+  WISDOM/history retained. Reload the app to receive the selector.
+
+Rollback: restore both source revisions and backed-up orchestrator settings,
+then restart the idle service. Push data, credentials and history remain intact.
+
+### 2026-09-16 verification
+
+All **30 tests passed**: `tests.test_ui` (16), `tests.test_mobile` (5),
+`tests.test_push` (5), `tests.test_page_smoke` (4), each in its own interpreter.
+The push and browser runs used the installed runtime
+`~/.local/share/agent-harness-ui/venv/bin/python`; system Python lacks the optional
+`http_ece` push dependency and cannot run the complete push proof. No dependency
+installation or runtime change was needed. Python/inline JavaScript syntax and
+diff checks passed.
+
+The live state endpoint reports UI 0.7.0/core 0.5.0, `full-access` selected, all
+three permission choices, no active work and no saved vendor session. This pass
+did not submit a live model task or restart the service. Core verification now
+includes a real Codex → shell CLI → worker → durable receipt lifecycle, alongside
+the existing MCP proof: 73 core tests passed. Evidence and source hashes are in
+`~/.local/state/agent-harness/proofs/permissions-20260916T134002Z/`.
+
+Readiness follow-up the same day: core session-bus recovery and installed-worker
+profile refresh passed **76 core + 30 UI tests**. The idle UI service was
+restarted, preserving full-access settings and history. User-approved live Codex
+Sol and Claude Sonnet workers each proved inside/outside-workspace writes,
+GitHub DNS/HTTPS access and durable receipts. Core TESTS.md records exact receipt
+IDs and scope; evidence is in
+`~/.local/state/agent-harness/proofs/readiness-20260916/`. No UI runtime source
+changed during this follow-up.

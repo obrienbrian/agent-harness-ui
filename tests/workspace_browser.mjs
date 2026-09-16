@@ -124,6 +124,26 @@ try{
   await evaluate('Object.defineProperty(document,"hidden",{configurable:true,value:true});document.dispatchEvent(new Event("visibilitychange"))');
   assert.equal(await evaluate('cometQueue.length'),0);
   await evaluate('delete document.hidden;document.dispatchEvent(new Event("visibilitychange"));applyState(beforeBurst)');
+  await click('session-pill');
+  assert.equal(await evaluate('$("set-permissions").value'),'full-access');
+  assert.equal(await evaluate('$("set-vendor").children.length'),2,'Permission metadata is not a vendor');
+  await evaluate('$("set-permissions").value="workspace";$("set-permissions").dispatchEvent(new Event("change"))');
+  await click('apply-btn'); await until('$("settings").hidden');
+  assert.deepEqual(mutations.filter(m=>m.path==='/api/orchestrator').at(-1).body,{permissions:'workspace'});
+  await click('session-pill');
+  assert.equal(await evaluate('$("set-permissions").value'),'workspace');
+  await evaluate('applyState({...lastState,orchestrator:{...lastState.orchestrator,busy:true}})');
+  assert.equal(await evaluate('$("set-permissions").disabled'),true);
+  await evaluate('applyState({...lastState,orchestrator:{...lastState.orchestrator,busy:false}})');
+  assert.equal(await evaluate('$("set-permissions").disabled'),false);
+  await evaluate('$("set-permissions").scrollIntoView({block:"center"})');
+  await fits('#set-permissions'); await shot('permissions');
+  for (const width of [390,320]) {
+    await call('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:true});
+    await evaluate('$("set-permissions").scrollIntoView({block:"center"})');
+    await fits('#set-permissions, #apply-btn'); await shot(`${width}-permissions`);
+  }
+  await click('settings-close');
   assert.deepEqual(errors,[]);
   console.log(JSON.stringify({layout:[1440,1000,390,320],playbookDrop:true,uploadDoesNotActivate:true,busyGuard:true,focus:true,boundedTraffic:true,reducedMotion:true,errors}));
 }finally{socket.close();}

@@ -226,3 +226,15 @@ display requires the phone owner to subscribe and grant OS permission.
 
 All existing Host/Origin/auth/JSON/rate-limit checks apply to these routes. No thread ID or RPC method
 is accepted from an API client. The installed vendor CLI alone handles its own credentials.
+
+## UI 0.7.0 — PERM-01 permissions
+
+`orchestrator.permissions`: `full-access` (default), `workspace`, or `read-only`.
+`orchestrator.options.permissions` contains `{id,label,description}` options.
+POST `/api/orchestrator` accepts `permissions`; GET state and the update response
+return it. Invalid values and changes during active work return 400 with a
+readable error. The core coordinates permission changes with active turns/workers
+across processes; the UI also disables the selector while busy. Saving a changed
+mode clears vendor session/goal identity while preserving durable history.
+Permission metadata must not be rendered as another vendor. `/status` displays
+the selected policy. All modes are headless; there is no interactive approval UI.

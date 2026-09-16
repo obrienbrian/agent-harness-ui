@@ -1,6 +1,6 @@
 # agent-harness-ui
 
-Current release: **0.6.0**, with core **0.4.0**. See [release notes](docs/RELEASE-NOTES.md).
+Current release: **0.7.0**, with core **0.5.0**. See [release notes](docs/RELEASE-NOTES.md).
 
 This release adds private phone access, session controls, worker cancellation, and background push.
 See [phone setup and daily use](docs/PHONE.md). The private app and Android test notification were verified.
@@ -13,6 +13,17 @@ timeline, a composer with `/delegate` and Stop, a command palette (⌘K / Ctrl K
 pill. Dark by default with a light theme (`#light`), phone-first at 390px. Stdlib Python server + one
 dependency-free HTML page (no CDN, no web fonts, no build step). Visual spec: `docs/DESIGN-SPEC.md`; design source:
 `docs/design/`.
+
+## Permissions
+
+Open **Session setup → Agent → Permissions**. The default is **Full access · no
+approvals**; choose **Workspace · restricted** or **Read only** to limit it. Save
+while work is idle. Changes start a new session and keep history. Edit workers
+inherit the policy; explicitly read-only tasks stay restricted. Headless
+restricted modes deny operations outside their scope without prompting.
+
+The same setting is available through `harness permissions full-access`,
+`harness permissions workspace`, or `harness permissions read-only`.
 
 ## Run
 

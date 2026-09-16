@@ -802,6 +802,7 @@
     <div class="field"><div class="caps">Effort <span class="opt" id="set-effort-note"></span></div><div class="seg small" id="set-effort"></div></div>
     <div class="field"><label class="caps" for="set-name">Display name</label><input class="input" id="set-name" type="text" placeholder="Orchestrator" autocomplete="off"></div>
     <div class="field"><label class="caps" for="set-cwd">Working directory</label><input class="input mono" id="set-cwd" type="text" placeholder="/abs/path" autocomplete="off" spellcheck="false"></div>
+    <div class="field"><label class="caps" for="set-permissions">Permissions</label><select class="input" id="set-permissions" aria-describedby="permissions-detail"></select><p class="v2-meta" id="permissions-detail"></p></div>
     <div class="session-reset"><div><strong>Start fresh</strong><p id="reset-hint">Keeps saved history</p></div>
       <button type="button" class="btn tall secondary" id="reset-btn">New session</button>
     </div>
@@ -1824,14 +1825,14 @@ function toggleGraph() { graphCollapsed = !graphCollapsed; phoneAutoCollapsed = 
 function toggleTheme() { applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'); toast(`${document.documentElement.dataset.theme === 'light' ? 'Light' : 'Dark'} theme`, '', 'neutral'); }
 
 /* ---- session setup ---- */
-const setState = { vendor: 'claude', model: '', effort: '', name: '', cwd: '', team: {mode:'suggest',roles:[]} };
+const setState = { vendor: 'claude', model: '', effort: '', name: '', cwd: '', permissions: 'full-access', team: {mode:'suggest',roles:[]} };
 function seg(container, items, value, onPick, extraCls) {
   container.textContent = '';
   items.forEach((it) => { const b = el('button', `${it === value ? 'on' : ''}${extraCls && extraCls(it) ? ' ' + extraCls(it) : ''}`, it === 'medium' && items.length > 4 ? 'med' : it); b.type = 'button'; b.dataset.value = it; b.title = it; b.setAttribute('aria-pressed', String(it === value)); b.addEventListener('click', () => onPick(it)); container.appendChild(b); });
 }
 function renderSettings() {
   const o = lastState && lastState.orchestrator || {}; const opts = (o.options || {})[setState.vendor] || { models: [], efforts: [] };
-  seg($('set-vendor'), Object.keys(o.options || { claude: 1, codex: 1 }).filter((v) => v !== 'targets'), setState.vendor, (v) => { dirtySettings = true; setState.vendor = v; const op = (o.options || {})[v] || { models: [], efforts: [] }; setState.model = op.models[0] || ''; setState.effort = op.efforts[Math.min(2, op.efforts.length - 1)] || ''; renderSettings(); });
+  seg($('set-vendor'), ['claude', 'codex'], setState.vendor, (v) => { dirtySettings = true; setState.vendor = v; const op = (o.options || {})[v] || { models: [], efforts: [] }; setState.model = op.models[0] || ''; setState.effort = op.efforts[Math.min(2, op.efforts.length - 1)] || ''; renderSettings(); });
   const list = $('set-model'); list.textContent = '';
   const models = opts.models.slice(); if (setState.model && !models.includes(setState.model)) models.push(setState.model);
   models.forEach((m) => { const option = el('option', '', m); option.value = m; list.appendChild(option); }); list.value = setState.model;
@@ -1841,11 +1842,18 @@ function renderSettings() {
   for (const b of $('set-effort').children) { b.disabled = !!supported && !supported.includes(b.dataset.value); b.title = b.disabled ? 'This model does not support this effort' : ''; }
   if (document.activeElement !== $('set-name')) $('set-name').value = setState.name || '';
   if (document.activeElement !== $('set-cwd')) $('set-cwd').value = setState.cwd || '';
+  const policies = (o.options || {}).permissions || [{id:'full-access',label:'Full access · no approvals',description:'Update the harness core to manage permissions.'}];
+  const permissionSelect = $('set-permissions'); permissionSelect.textContent = '';
+  policies.forEach((p) => { const option = el('option', '', p.label); option.value = p.id; permissionSelect.appendChild(option); });
+  permissionSelect.value = setState.permissions;
+  const activeWork = !!o.busy || !!((lastState || {}).workers || []).length;
+  permissionSelect.disabled = activeWork || !(o.options || {}).permissions;
+  $('permissions-detail').textContent = activeWork ? 'Stop or wait for the active turn and workers before changing permissions.' : ((policies.find((p) => p.id === setState.permissions) || {}).description || '') + ' No interactive approval prompts. Changing permissions starts a new session and keeps saved history.';
   renderTeam();
 }
 function openSettings(tab = 'agent') {
   const o = lastState && lastState.orchestrator || {};
-  if (!dirtySettings) Object.assign(setState, { vendor: o.vendor || 'claude', model: o.model || '', effort: o.effort || '', name: o.name || '', cwd: o.cwd || '', team: JSON.parse(JSON.stringify(o.team || {mode:'suggest',roles:[]})) });
+  if (!dirtySettings) Object.assign(setState, { vendor: o.vendor || 'claude', model: o.model || '', effort: o.effort || '', name: o.name || '', cwd: o.cwd || '', permissions: o.permissions || 'full-access', team: JSON.parse(JSON.stringify(o.team || {mode:'suggest',roles:[]})) });
   renderSettings(); showOverlay('settings'); selectSettingsTab(tab);
 }
 $('set-model').addEventListener('change', () => { dirtySettings = true; setState.model = $('set-model').value; renderSettings(); });
@@ -1870,6 +1878,7 @@ syncMotion();
 $('session-pill').addEventListener('click', () => { if (openOverlay === 'settings') closeOverlay(); else openSettings(); });
 $('set-name').addEventListener('input', () => { dirtySettings = true; setState.name = $('set-name').value; });
 $('set-cwd').addEventListener('input', () => { dirtySettings = true; setState.cwd = $('set-cwd').value; });
+$('set-permissions').addEventListener('change', () => { dirtySettings = true; setState.permissions = $('set-permissions').value; renderSettings(); });
 $('apply-btn').addEventListener('click', () => {
   const o = lastState && lastState.orchestrator || {}; const body = {}; const changes = [];
   if (setState.vendor !== o.vendor) { body.vendor = setState.vendor; changes.push(`vendor → ${setState.vendor}`); }
@@ -1877,6 +1886,7 @@ $('apply-btn').addEventListener('click', () => {
   if (setState.effort && setState.effort !== o.effort) { body.effort = setState.effort; changes.push(`effort → ${setState.effort}`); }
   if ((setState.name || '').trim() && setState.name.trim() !== o.name) { body.name = setState.name.trim(); changes.push(`name → ${body.name}`); }
   if ((setState.cwd || '').trim() && setState.cwd.trim() !== o.cwd) { body.cwd = setState.cwd.trim(); changes.push('cwd changed'); }
+  if (setState.permissions !== (o.permissions || 'full-access')) { body.permissions = setState.permissions; changes.push('permissions updated · new session'); }
   if (JSON.stringify(setState.team) !== JSON.stringify(o.team || {mode:'suggest',roles:[]})) { body.team = setState.team; changes.push('team updated'); }
   if (!Object.keys(body).length) { toast('Nothing to apply', '', 'neutral'); return; }
   if (body.vendor) body.model = setState.model; if (body.vendor) body.effort = setState.effort;
@@ -2025,6 +2035,7 @@ function applyState(state) {
   if (statsFresh && lastStats) renderStats(lastStats);
   if (initialized && newMsgs.length) enqueueHops(newMsgs);
   if (openOverlay === 'playbooks') updatePlaybookAction();
+  if (openOverlay === 'settings') renderSettings();
   initialized = true;
   return newMsgs.length > 0;
 }
@@ -2197,7 +2208,7 @@ async function runCommand(name, args) {
   if (name === 'theme') { if (!args) toggleTheme(); else if (['light','dark'].includes(args)) applyTheme(args); else throw new Error('Use /theme light or /theme dark.'); return; }
   if (name === 'status') {
     const box = drawer('Workspace status');
-    for (const [label,value] of [['Agent',o.name],['Model',o.vendor + ' · ' + o.model],['Effort',o.effort],['Working directory',o.cwd],['State',o.busy ? 'Working' : 'Idle'],['Goal',goalSummary(lastState && lastState.goal)]]) {
+    for (const [label,value] of [['Agent',o.name],['Model',o.vendor + ' · ' + o.model],['Effort',o.effort],['Permissions',o.permissions || 'full-access'],['Working directory',o.cwd],['State',o.busy ? 'Working' : 'Idle'],['Goal',goalSummary(lastState && lastState.goal)]]) {
       const row = el('div','v2-row'); row.append(el('span','',label),el('span','mono',value || '—')); box.appendChild(row);
     } return;
   }
