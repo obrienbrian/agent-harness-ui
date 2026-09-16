@@ -19,10 +19,10 @@ The model/session pill opens **Session setup**: Agent, Team, and Preferences tab
 the optional traffic-animation switch live in Preferences. Appearance choices apply immediately to
 this device; Agent/Team changes use **Save changes**.
 
-The **WISDOM** button in the top bar opens the separate **Playbook library**. WISDOM is the built-in
+The **WISDOM** button in the top bar opens the separate **AI Kernel library**. WISDOM is the built-in
 default. Use **Choose markdown** on your phone, or drop a `.md` file on desktop (UTF-8, up to 256 KB).
-Uploading stores the document; **Use playbook** selects it and starts a fresh conversation on the next
-turn, preserving history. Wait for an active turn to finish before switching. The selected playbook's
+Uploading stores the document; **Use AI Kernel** selects it and starts a fresh conversation on the next
+turn, preserving history. Wait for an active turn to finish before switching. The selected AI Kernel's
 name replaces WISDOM in the top bar. WISDOM remains pinned first in the library for easy return.
 
 **Latest exchanges** shows actual agent messages, with brief arrival motion. Tap a card for its full
@@ -107,7 +107,7 @@ Tab inserts, Enter runs, and Shift+Enter adds a line.
 | `/clear [name]` | Fresh conversation and empty feed, keeping saved history |
 | `/new [name]` | Fresh conversation with the existing feed visible |
 | `/model`, `/effort` | Choose settings; a model ID or effort can follow the command |
-| `/playbook`, `/team`, `/settings` | Open instructions, team, or preferences |
+| `/kernel`, `/team`, `/settings` | Open instructions, team, or preferences |
 | `/sessions`, `/history`, `/status` | Inspect work, saved turns, or current settings |
 | `/delegate target [readonly\|edit] prompt` | Prepare a direct worker task for review and sending |
 | `/theme [light\|dark]` | Change this device's appearance |

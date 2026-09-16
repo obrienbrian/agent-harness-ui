@@ -80,13 +80,13 @@ Receipts for the web UI. The core harness receipts live in the agent-harness rep
   Chromium supports `offset-path`; light theme only spot-checked on the live-turn screen.
 
 
-## UI-V2 — playbooks, teams, live control, history (2026-09-15)
+## UI-V2 — AI Kernels, teams, live control, history (2026-09-15)
 
 Core 0.2.0 / UI 0.3.0; all previous uncommitted design work retained. Both repos remain uncommitted.
 
 - `python3 -m unittest tests.test_ui`: 12 passed (8 regression/static plus 4 v2 integration cases).
   A stub process that ignores SIGTERM and spawns a child is stopped within two seconds with no live orphan.
-  An HTTP SSE reader sees a direct delegation hop within 500 ms. Tests cover playbook upload → selection →
+  An HTTP SSE reader sees a direct delegation hop within 500 ms. Tests cover AI Kernel upload → selection →
   Claude system argv, strict role defaults → worker argv/provenance, active document deletion refusal,
   preset save/delete, resumed receipt parent persistence, saved history, token authentication, Origin guard,
   CSP script nonce matching, and a service worker that does not cache application data.
@@ -148,7 +148,7 @@ computer. This device witness is not a guarantee under every network/OS conditio
 ## UI-05 — workspace refresh (2026-09-15; UI 0.5.0 / core 0.3.0)
 
 - Focused criteria and rollback: DESIGN-SPEC.md, Current workspace refresh. Runtime implementation
-  remains a single dependency-free HTML file. Existing state/SSE and playbook/push endpoints retained.
+  remains a single dependency-free HTML file. Existing state/SSE and AI Kernel/push endpoints retained.
 - JavaScript parser (`node --check` on the extracted inline script and `tests/workspace_browser.mjs`),
   Python compilation of changed Python files, and `git diff --check`: passed.
 - `python3 -m unittest tests.test_ui tests.test_page_smoke`: **15 passed**. The existing API proof
@@ -159,7 +159,7 @@ computer. This device witness is not a guarantee under every network/OS conditio
   initial history has no arrival animation; new HTTP messages animate; unchanged polling retains card
   nodes; an exchange opens its feed task; tabs/keyboard/focus containment/return; six Codex effort
   choices; subscribed alerts fit; light/dark render; invalid file stays local; drag/drop upload does
-  not activate; Use playbook sends only the selected playbook; unrelated settings save preserves it;
+  not activate; Use AI Kernel sends only the selected AI Kernel; unrelated settings save preserves it;
   busy selection is held; 100 messages leave three cards and bounded comets; literal markup stays
   text; collapsed/hidden views clear the queue; reduced motion preserves text without visible travel.
 - Visual inspection found worker role chips clipped at the bottom of the compact map; increased the
@@ -170,7 +170,7 @@ computer. This device witness is not a guarantee under every network/OS conditio
   internal CSS class. Final combined suite passed with that independent visual oracle.
 - Fixture-only reference renders (no live prompts or results):
   [desktop](screenshots/ui-0.5-desktop.png), [phone preferences](screenshots/ui-0.5-phone-preferences.png),
-  [phone playbook library](screenshots/ui-0.5-phone-library.png).
+  [phone AI Kernel library](screenshots/ui-0.5-phone-library.png).
 - Size: approximately 175 KB HTML versus 151 KB before; about 44 KB versus 38 KB if compressed.
   No new runtime dependency, image/font asset, polling interval, or paid model call. This is a bounded
   workload/design check, not a device battery benchmark.
@@ -212,7 +212,7 @@ Criteria: HELP-GOAL-01 in core and UI 0.6.0 additions in DESIGN-SPEC/UI-CONTRACT
   and opens controls only. Native goals are Codex-only; unsupported terminal commands are documented.
 
 Rollback: revert this release and core 0.4.0 together to UI 0.5.0/core 0.3.0, then restart the idle user
-service. Durable history, push subscriptions and uploaded playbooks stay in their existing data dirs.
+service. Durable history, push subscriptions and uploaded AI Kernels stay in their existing data dirs.
 
 ## UI-07 — permissions (2026-09-15)
 
@@ -262,3 +262,41 @@ GitHub DNS/HTTPS access and durable receipts. Core TESTS.md records exact receip
 IDs and scope; evidence is in
 `~/.local/state/agent-harness/proofs/readiness-20260916/`. No UI runtime source
 changed during this follow-up.
+
+## UI-08 — questions, session titles and AI Kernels (2026-09-16)
+
+UI 0.8.0 / core 0.6.0; COLLAB-01 in the core design. **41 tests passed**, each
+module in its own interpreter: API 16, collaboration 9, mobile 5, push 6,
+browser 5. The installed runtime venv supplies the optional push dependencies.
+
+- Real HTTP/process/MCP integration proves worker → orchestrator → human →
+  original worker delivery for Claude and Codex, confident direct answers,
+  direct-worker continuation, durable restart state, busy/stale/duplicate refusal,
+  native-goal pause and title retention. Deterministic vendor leaves spend no
+  subscription capacity. A stale-session mutation fails at `202 != 409`.
+- Chromium drives neutral AI Kernel copy, the preferred command and hidden
+  compatibility alias, title-only renaming, new-session titles, question options
+  and free text, errors and drafts across polls, actual retained input focus,
+  stale/busy controls, cancellation, and question notification deep links.
+  A server-owned question is answered through HTTP; double-click emits one POST.
+  Interrupted delivery remains visibly unconfirmed. No JavaScript exceptions.
+- Real message bubbles and roster/graph attribution use saved events. Desktop
+  and 390/320px layouts fit; reduced motion is respected. Fixture screenshots:
+  [workspace](screenshots/collaboration-workspace.png),
+  [question inbox](screenshots/collaboration-inbox.png),
+  [AI Kernel library](screenshots/ai-kernel-library.png).
+- Indexed inbox growth/restore and complete WISDOM loader proofs are recorded
+  in the core TESTS.md. **98 core tests passed**; the optional vendor-help census
+  skipped after timeout. No paid live model probe was added to this release.
+
+Reproduce screenshots with `HARNESS_TEST_SCREENSHOTS=/tmp/harness-collaboration`
+and `python3 -m unittest tests.test_page_smoke` (Chromium and Node installed).
+The fixtures are sample data, not private live conversations. Exact activation
+and publication receipts stay in the private core proof directory.
+
+Activation: the idle user service now serves UI 0.8.0/core 0.6.0 with full-access
+and WISDOM unchanged. Saved settings/messages/ledger hashes match before and
+after restart; no active work was interrupted. Doctor reports no blockers.
+A separate live 390px Chromium check opened the AI Kernel library, session-title
+settings, and Questions with zero POSTs, zero JavaScript errors and no horizontal
+overflow. Its screenshots stay private because they include actual saved work.

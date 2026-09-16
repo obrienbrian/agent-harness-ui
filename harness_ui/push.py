@@ -109,6 +109,8 @@ class Push:
     def _queue(self, key, sid, kind, target=None):
         payload = {'title': 'Harness needs attention' if kind == 'attention' else 'Harness test notification' if kind == 'test' else 'Harness work finished',
                    'body': 'Open Harness to review the details.', 'tag': key, 'url': '/'}
+        if isinstance(target, str) and target.startswith('q_'):
+            payload['url'] = '/#questions'
         if target and isinstance(target, str) and target.startswith(('t_', 'dlg_')):
             payload['url'] = '/#' + ('turn=' if target.startswith('t_') else 'receipt=') + target
         self.db.execute('INSERT OR IGNORE INTO outbox(id,subscription,payload,next,created) VALUES(?,?,?,?,?)',
@@ -142,13 +144,13 @@ class Push:
                         meta = m.get('meta') or {}
                         kind = meta.get('notification')
                         if not kind and m.get('kind') == 'receipt' and m.get('to') == 'user':
-                            if meta.get('root_code') == 'HARNESS_WORKER_CANCELLED':
+                            if meta.get('root_code') == 'HARNESS_WORKER_CANCELLED' or meta.get('question_id'):
                                 continue
                             kind = 'complete' if meta.get('root_code') == 'ok' else 'attention'
                         if kind:
                             for sid, created in subs:
                                 if m.get('ts', '') >= created:
-                                    self._queue(m['id'], sid, kind, meta.get('delegation_id') or meta.get('turn_id'))
+                                    self._queue(m['id'], sid, kind, meta.get('question_id') or meta.get('delegation_id') or meta.get('turn_id'))
                     except (ValueError, KeyError, TypeError):
                         continue
             self.db.execute('UPDATE cursor SET offset=? WHERE id=1', (offset,))

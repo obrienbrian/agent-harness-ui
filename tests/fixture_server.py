@@ -48,6 +48,7 @@ class Fixture:
         self.calls = 0
         self.orch_updates = {}
         self.uploads = []
+        self.questions = []
         self.goal = None
         self.goal_running = False
 
@@ -123,12 +124,13 @@ class Fixture:
         return {
             "as_of": iso(0), "version": "fixture", "core_version": "fixture",
             "goal": self.goal_view(),
-            "orchestrator": {"vendor": "claude", "model": "fable", "effort": "high", "name": "Orchestrator", "session_ref": {"kind": "claude_session", "id": "86b8a730-fixture"},
+            "orchestrator": {"session_id":"fixture-session", "session_title":"", "vendor": "claude", "model": "fable", "effort": "high", "name": "Orchestrator", "session_ref": {"kind": "claude_session", "id": "86b8a730-fixture"},
                              "cwd": "/home/user/projects", "permissions": "full-access", "busy": self.busy or self.goal_running, "turns": 4 if self.busy else 3, "current_turn": "t_a3c7cc33" if self.busy or self.goal_running else None,
                              "playbook": "wisdom", "team": {"mode": "suggest", "roles": [{"label": "Verifier", "to": "claude", "model": "haiku", "effort": "high", "class": "readonly", "brief": "Check evidence."}]},
                              "options": {"permissions": [{"id":"full-access","label":"Full access · no approvals","description":"Files, commands and network access."},{"id":"workspace","label":"Workspace · restricted","description":"Workspace edits."},{"id":"read-only","label":"Read only","description":"No edits."}], "targets": ["claude", "codex"], "claude": {"models": ["fable", "opus", "sonnet", "haiku"], "efforts": ["low", "medium", "high", "xhigh", "max"]},
                                          "codex": {"models": ["gpt-5.6-sol", "gpt-6-astra", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-5.5", "gpt-5.3-codex-spark"], "efforts": ["minimal", "low", "medium", "high", "xhigh", "max"], "model_efforts": {"gpt-5.6-sol": ["low", "medium", "high", "xhigh"]}}}, **self.orch_updates},
             "agents": agents + [{"id": "worker:claude:haiku", "name": "Verifier", "vendor": "claude", "model": "haiku", "role": "worker", "status": "planned", "ghost": True, "messages": 0, "last_seen": None}], "messages": ms,
+            "questions": self.questions,
             "playbooks": [{"slug":"wisdom","name":"WISDOM","builtin":True},{"slug":"none","name":"None","builtin":True},{"slug":"review-guide","name":"Review guide","summary":"Review evidence before changing code","sha256":"a"*64,"bytes":2048,"uploaded_at":iso(500)}, *self.uploads],
             "teams": [{"slug":"solo","name":"Solo","builtin":True,"team":{"mode":"suggest","roles":[]}}],
             "today": {"turns":4,"delegations":8,"tokens":12750,"ok_rate":.875,"p50_duration_ms":4000},
@@ -180,13 +182,23 @@ def make_handler(fx: Fixture):
                 return self._json(200, {'available':False, 'error':'fixture does not send notifications'})
             if p == '/api/goal':
                 return self._json(200, fx.goal_view())
-            if p in ('/api/playbooks', '/api/teams'):
+            if p in ('/api/playbooks', '/api/kernels', '/api/teams'):
                 key = p.rsplit('/', 1)[1]
-                return self._json(200, {key: fx.state()[key]})
+                rows = fx.state()['playbooks' if key == 'kernels' else key]
+                return self._json(200, {key: rows, **({'playbooks':rows} if key == 'kernels' else {})})
             self._json(404, {"error": "not found"})
 
         def do_POST(self):  # noqa: N802
             n = int(self.headers.get("Content-Length") or 0); body = json.loads(self.rfile.read(n) or b'{}')
+            if self.path.startswith('/api/questions/'):
+                qid, action = self.path.split('/')[-2:]
+                q = next((q for q in fx.questions if q['id'] == qid), None)
+                if not q: return self._json(404, {'error':'Unknown question'})
+                if fx.busy or q['status'] != 'open': return self._json(409, {'error':'Wait for the current turn'})
+                q['status'] = 'answered' if action == 'answer' else 'cancelled'
+                q['answer'] = body.get('answer')
+                if action == 'answer': q['delivery'] = {'status':'started','kind':'turn','id':'t_answer'}
+                return self._json(202 if action == 'answer' else 200, q)
             if self.path == '/api/goal':
                 if not fx.goal_view()['supported']:
                     return self._json(400, {'error':'Goal mode requires Codex'})
@@ -200,6 +212,7 @@ def make_handler(fx: Fixture):
             if self.path == '/api/clear':
                 if fx.busy or fx.goal_running: return self._json(409, {'error':'Stop work first'})
                 fx.orch_updates['session_ref'] = None; fx.goal = None
+                fx.orch_updates['session_title'] = body.get('name', '')
                 if body.get('clear_view',True): fx.orch_updates['feed_offset'] = 1000000
                 return self._json(200, {'status':'cleared','feed_offset':fx.orch_updates.get('feed_offset',0)})
             if self.path == "/api/say":
@@ -207,9 +220,10 @@ def make_handler(fx: Fixture):
             if self.path == "/api/orchestrator":
                 if fx.busy:
                     return self._json(409, {'error':'busy'})
+                if 'kernel' in body: body['playbook'] = body['kernel']
                 fx.orch_updates.update(body)
                 return self._json(200, fx.state()["orchestrator"])
-            if self.path == '/api/playbooks':
+            if self.path in ('/api/playbooks', '/api/kernels'):
                 import hashlib
                 content = body['content'].encode()
                 row = {'slug':'uploaded-guide', 'name':body['name'], 'summary':'Uploaded test instructions', 'sha256':hashlib.sha256(content).hexdigest(), 'bytes':len(content)}

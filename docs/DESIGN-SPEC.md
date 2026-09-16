@@ -11,7 +11,7 @@ UI-CONTRACT.md also supersede this document's original v1-only/no-Stop descripti
 
 Focused WISDOM route: reversible UI changes; one mutation owner; preserve the existing API, WISDOM
 default, saved history, and permission boundaries. Producer/consumer seam: existing state/SSE messages
-→ bounded graph cards, existing playbook endpoints → separate selection, existing push state → status
+→ bounded graph cards, existing AI Kernel endpoints → separate selection, existing push state → status
 and actions. No model calls, new dependencies, or polling for the redesign.
 
 | Surface / criterion | Design and proof |
@@ -19,7 +19,7 @@ and actions. No model calls, new dependencies, or polling for the redesign.
 | Graph feels active without fabricated chatter | Compact dotted map beside three real message excerpts. Arrival uses a 240ms opacity/translate animation; click opens the full feed entry. Unchanged polling preserves nodes; history does not replay. Browser checks initial state, HTTP advance, feed navigation, unchanged state, and a 100-message burst. |
 | Motion stays bounded | Four visible graph slots (overflow opens roster); desktop map 460×252, phone 390×150. Six active/six queued comets maximum. Hidden/collapsed views discard queued effects; reduced motion and device preference suppress animation. No new timer loop. Narrow graph containers show only the latest card. |
 | Session settings remain usable | 580px centered dialog, Agent/Team/Preferences tabs, compact native model select, scrollable body, persistent save footer; phone bottom sheet. Keyboard tabs, focus containment/return, Escape, light/dark, widths 1440/1000/390/320 checked in Chromium. |
-| WISDOM stays default; uploads require explicit selection | Dedicated top-bar playbook library; built-in WISDOM pinned first. Markdown file/drop input retains 256 KB/UTF-8/server secret validation. Upload stores; Use playbook switches only that setting. Busy UI holds selection. Browser verifies upload has no activation POST and unrelated Agent saves cannot overwrite playbook. Existing API proof covers actual injection and secret rejection. |
+| WISDOM stays default; uploads require explicit selection | Dedicated top-bar AI Kernel library; built-in WISDOM pinned first. Markdown file/drop input retains 256 KB/UTF-8/server secret validation. Upload stores; Use AI Kernel switches only that setting. Busy UI holds selection. Browser verifies upload has no activation POST and unrelated Agent saves cannot overwrite AI Kernel. Existing API proof covers actual injection and secret rejection. |
 | Subscribed alerts do not overflow | Preferences displays an Enabled badge plus separate Test/Disable controls. Buttons have automatic height and wrapping; browser checks subscribed-state control bounds on narrow screens. Existing push backend retained. |
 
 Plan: implement graph/menu/library → syntax/static checks → existing API and browser regressions plus
@@ -211,7 +211,7 @@ ticking (they are text, not animation).
 One command registry supplies composer suggestions and the Help reference. Top-bar `?` and the command
 palette open the existing focus-trapped drawer, with Getting started and Commands views. Command rows
 insert text for review, never execute on tap. Help covers workspace choice, real exchanges, goals,
-playbooks, team/delegation, sessions/history, Stop/reset, phone lifecycle, notifications, and shortcuts.
+AI Kernels, team/delegation, sessions/history, Stop/reset, phone lifecycle, notifications, and shortcuts.
 
 `/goal` uses the native Codex goal contract. A compact strip above the composer shows objective, status,
 and native token usage. The detail drawer has pause/resume/edit/clear and an optional-budget form. Form

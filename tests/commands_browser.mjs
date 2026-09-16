@@ -33,7 +33,7 @@ try{
   assert.ok(await evaluate('$("v2-content").textContent.includes("Keep a goal moving")'));
   await fits('#v2-close, .help-tabs button');await shot('phone-help');
   await evaluate('Array.from(document.querySelectorAll(".help-tabs button")).find(b=>b.textContent==="Commands").click()');
-  assert.ok(await evaluate('$("v2-content").textContent.includes("/clear [name]")'));
+  assert.ok(await evaluate('$("v2-content").textContent.includes("/clear [title]")'));
   assert.ok(await evaluate('$("v2-content").textContent.includes("not available here")'));
   await shot('phone-commands');
   await evaluate('Array.from(document.querySelectorAll(".command-row")).find(b=>b.textContent.startsWith("/goal ")).click()');

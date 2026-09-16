@@ -121,7 +121,7 @@ Messages: `tool_use.meta` may add `"playbook": "<source>"` and receipts may add 
 A stopped turn ends with an `error` hop whose `meta.root_code` is `HARNESS_TURN_STOPPED`.
 
 New endpoints:
-- `GET /api/playbooks` → `{"playbooks": [...]}`; `POST /api/playbooks` body `{"name": "…", "content": "<markdown ≤ 256 KB>", "replace": false}` → 201 `{"slug": …, "sha256": …}` (409 if the slug exists and `replace` is false; 400 on size/encoding/name); `DELETE /api/playbooks/<slug>` → 204 (409 while it is the active playbook).
+- `GET /api/playbooks` → `{"playbooks": [...]}`; `POST /api/playbooks` body `{"name": "…", "content": "<markdown ≤ 256 KB>", "replace": false}` → 201 `{"slug": …, "sha256": …}` (409 if the slug exists and `replace` is false; 400 on size/encoding/name); `DELETE /api/playbooks/<slug>` → 204 (409 while it is the active AI Kernel).
 - `GET /api/teams`; `POST /api/teams` body `{"name": "…", "team": {…}}` → 201; `DELETE /api/teams/<slug>` (builtin presets are read-only → 405).
 - `POST /api/orchestrator` accepts `playbook` and `team` in addition to the v1 fields; both are validated (unknown slug, disabled target, unsupported effort → 400 with a message naming the field).
 - `POST /api/turn/<turn_id>/stop` → 202 `{"turn_id": …, "status": "stopping"}`; 404 unknown; 409 not running.
@@ -130,9 +130,9 @@ New endpoints:
 - `POST /api/delegate/<dlg_id>/resume` body `{"prompt": "…"}` → 202 like `/api/delegate`.
 - `GET /api/turns?limit=50` → `{"turns": [{"turn_id", "status", "started_at", "ended_at", "events", "error", "delegations", "prompt_head"}]}`.
 
-Frontend expectations added: Settings popover gains "Playbook" (radio list + Upload .md + delete) and "Team"
+Frontend expectations added: Settings popover gains "AI Kernel" (radio list + Upload .md + delete) and "Team"
 (preset picker, roster editor, mode) sections using the existing `.field/.seg/.list/.chips-row` components; the
-session pill caption shows the playbook slug when it is not `wisdom`; the graph draws dashed ghost nodes for team
+session pill caption shows the AI Kernel slug when it is not `wisdom`; the graph draws dashed ghost nodes for team
 roles that have not delegated yet; the composer busy line gets a Stop control; the effort control greys out levels
 absent from `model_efforts[model]` and shows a one-line reason.
 
@@ -149,7 +149,7 @@ summaries become `error` after restart. `GET /api/state.today` and `/api/stats?m
 turns, delegations, success fraction (`ok_rate`), median duration (`p50_duration_ms`), and observed token usage.
 Resumed receipts persist `resumed_from`, the original `playbook`, and its provenance hash.
 
-Playbook documents over 60,000 UTF-8 bytes use an immutable file pointer with full SHA-256 instead of an
+AI Kernel documents over 60,000 UTF-8 bytes use an immutable file pointer with full SHA-256 instead of an
 oversized argv element. Uploads still accept 256 KB. `provenance.delivery` says `pointer` or `inline` for
 uploaded worker instructions. WISDOM uses its prior hooks/pointers; `none` omits harness-added instructions.
 
@@ -206,7 +206,7 @@ display requires the phone owner to subscribe and grant OS permission.
   for set/edit and optional positive-integer `token_budget`. Null/omitted budget on set/edit removes a
   budget. Set/resume starts work; edit saves paused with reset accounting; pause/clear can stop active
   work. Native non-active status or turn failure stops continuation. Busy conflicts return 409;
-  unsupported/invalid requests return 400. Provider/workspace/playbook/team/reset changes require pause.
+  unsupported/invalid requests return 400. Provider/workspace/AI Kernel/team/reset changes require pause.
 - `/api/state` adds `goal` with the same shape from a cached snapshot: no native subprocess per poll.
   `orchestrator.busy` includes gaps between managed goal turns. After restart, `running:false` even if
   native status is active; explicit resume is required. Permission scope stays unchanged.
@@ -238,3 +238,28 @@ across processes; the UI also disables the selector while busy. Saving a changed
 mode clears vendor session/goal identity while preserving durable history.
 Permission metadata must not be rendered as another vendor. `/status` displays
 the selected policy. All modes are headless; there is no interactive approval UI.
+
+## UI 0.8.0 / core 0.6.0 — questions, session titles, AI Kernels
+
+- `orchestrator.session_id` is a logical conversation identity, independent of
+  the vendor thread. `session_title` is an optional string up to 80 characters.
+  POST orchestrator accepts it without resetting agent name or thread; title
+  changes appear in saved turns. `/api/clear.name` now names the new session.
+- State adds `questions`; GET `/api/questions` returns the same human inbox.
+  Rows contain `id`, `question`, `context`, optional string `options`, `status`
+  (open/answered/cancelled), `session_id`, `source_agent`, `turn_id`,
+  `delegation_id`, `created_at`, `answer`, `delivery`, and escalation provenance.
+- POST `/api/questions/<id>/answer {answer}` returns 202 with the saved row and
+  continuation `{status:started,kind:turn|delegation,id}`. Invalid input is 400;
+  duplicate, busy, active-goal or stale-session submission is 409; unknown is 404.
+  Suggestions never exclude a custom answer. Draft text survives rejected requests.
+- POST `/api/questions/<id>/cancel {}` records cancellation. Dispatching or failed
+  delivery remains visible; clients never replay an answer automatically.
+- Worker question receipts use HARNESS_NEEDS_INPUT with `question_id` and typed
+  question payload. A human answer to a direct worker resumes that worker;
+  escalated answers start an orchestrator turn containing the original receipt ID.
+- `/api/kernels` and `/api/kernels/<slug>` provide catalog/upload/delete with
+  the existing semantics. `kernel` is a preferred orchestrator/delegation field;
+  stored legacy keys and routes remain compatible. Public terminology is AI Kernel.
+- Questions and answers also appear as actual message kinds in the graph/feed.
+  Attention notifications use the existing protected push pipeline.

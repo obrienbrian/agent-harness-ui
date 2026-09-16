@@ -1,3 +1,15 @@
+# Harness UI 0.8.0
+
+Release date: 2026-09-16. Requires Agent Harness core 0.6.0.
+
+- A question inbox with source/context, suggested choices, custom answers, saved
+  dispositions, and guarded continuation.
+- Session titles separate from agent names, plus `/rename`.
+- AI Kernel library with neutral copy and your own Markdown instructions.
+- More expressive real exchanges, with speech bubbles, handoffs and attention
+  states; reduced-motion and per-device animation controls remain available.
+- Rewritten setup and everyday-use README.
+
 # Agent Harness UI 0.7.0
 
 Release date: 2026-09-16.
@@ -14,7 +26,7 @@ busy rejection and layout. See docs/TESTS.md.
 Released locally on 2026-09-15. Requires Agent Harness core 0.4.0 and installed Codex with native goal support (verified with 0.154.0).
 
 - **Help & instructions:** the top-bar **?** opens getting-started instructions and a command reference, on desktop and phone.
-- **Slash commands:** type `/` to browse and select commands. `/clear` resets the conversation and visible feed while keeping saved history; `/new` keeps the feed visible. Model, effort, settings, playbook, team, sessions, status, history, theme, delegate, and Stop controls have commands too.
+- **Slash commands:** type `/` to browse and select commands. `/clear` resets the conversation and visible feed while keeping saved history; `/new` keeps the feed visible. Model, effort, settings, AI Kernel, team, sessions, status, history, theme, delegate, and Stop controls have commands too.
 - **Native Codex goals:** `/goal <objective>` starts persistent work. `/goal` opens the goal panel, including an optional token budget. Pause, resume, edit, and clear are available from the panel or commands. The goal bar shows native status and usage. Claude goals and other terminal-only commands are explicitly unsupported.
 - **Reliable controls:** busy work still permits commands such as pause/stop; resets are rejected while busy. Unknown slash commands never become prompts. Use `//` for literal slash text. Old event/poll data cannot restore a cleared feed.
 - **Lightweight:** no new frontend dependencies, assets, recurring requests, or paid capability probes. Native goal metadata is read on demand; ordinary state updates use the saved snapshot. WISDOM remains the default.
@@ -29,7 +41,7 @@ Released locally on 2026-09-15. Requires Agent Harness core 0.3.0.
   click-through to the full feed entry. History loads quietly; new events drive the motion.
 - **Session setup:** Agent, Team, and Preferences tabs replace the long popover. Compact model picker,
   keyboard navigation, contained scrolling, and a persistent save footer on desktop and phone.
-- **Playbook library:** a dedicated top-bar button, WISDOM pinned as the built-in default, markdown
+- **AI Kernel library:** a dedicated top-bar button, WISDOM pinned as the built-in default, markdown
   drag-and-drop or file selection, and a separate activation step. Your running WISDOM selection stays intact.
 - **Alert layout fix:** enabled status is a badge; Test and Disable use buttons that fit their text.
 - **Lightweight motion:** three message cards, at most six active and six queued comets, no new polling,
@@ -62,7 +74,7 @@ Released locally on 2026-09-15. Requires Agent Harness core 0.2.0.
 
 - **Orchestration view:** refreshed desktop/phone layout, live agent graph, delegation cards, role labels,
   pending-work indicators, traffic charts, and planned team roles.
-- **Playbook controls:** select WISDOM or an uploaded markdown document, view its provenance, and manage uploads.
+- **AI Kernel controls:** select WISDOM or an uploaded markdown document, view its provenance, and manage uploads.
 - **Team editor:** choose or save presets, edit worker roles, and select suggested or strict role rules.
 - **Effort controls:** display the configured vendor choices and disable levels a model has explicitly rejected.
 - **Stop and live updates:** stop an active turn from the composer; new messages stream immediately with polling fallback.

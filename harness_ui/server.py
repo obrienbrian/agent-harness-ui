@@ -18,7 +18,7 @@ from urllib.parse import parse_qs, urlparse
 from harness import __version__ as core_version
 from harness import orchestrator as orch
 from harness.receipts import now_iso, load_receipt, safe_data
-from harness import playbooks, teams, events, workers
+from harness import playbooks, teams, events, workers, questions
 
 from . import __version__
 from . import access, sessions, icons
@@ -85,10 +85,11 @@ def state_view() -> dict:
     cfg = orch.load_cfg()
     busy = orch.REGISTRY.busy()
     msgs = orch.read_messages(300, cfg.get('feed_offset', 0))
-    o = {k: cfg.get(k) for k in ("vendor", "model", "effort", "name", "session_ref", "cwd", "turns", "playbook", "team", "feed_offset", "permissions")}
+    o = {k: cfg.get(k) for k in ("vendor", "model", "effort", "name", "session_ref", "cwd", "turns", "playbook", "team", "feed_offset", "permissions", "session_id", "session_title")}
+    o["kernel"] = cfg.get("playbook", "wisdom")
     o.update(busy=busy, current_turn=orch.REGISTRY.current if busy else None, options=orch.options())
     return {"as_of": now_iso(), "version": __version__, "core_version": core_version, "orchestrator": o, "agents": orch.agents_view(msgs, cfg, busy),
-            "messages": msgs, "goal": orch.goal_view(), "playbooks": playbooks.catalog(), "teams": teams.catalog(), "today": orch.today_stats(), "live_sessions": CACHE.live_sessions(), "workers": workers.active(), "harness": CACHE.harness_status()}
+            "questions": questions.listing(audience="user"), "kernels": playbooks.catalog(), "messages": msgs, "goal": orch.goal_view(), "playbooks": playbooks.catalog(), "teams": teams.catalog(), "today": orch.today_stats(), "live_sessions": CACHE.live_sessions(), "workers": workers.active(), "harness": CACHE.harness_status()}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -175,8 +176,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(401, {"error": "authentication required"})
         if u.path == "/api/events":
             return self._events()
-        if u.path == "/api/playbooks":
-            return self._json(200, {"playbooks": playbooks.catalog()})
+        if u.path in ("/api/playbooks", "/api/kernels"):
+            return self._json(200, {"playbooks": playbooks.catalog(), "kernels": playbooks.catalog()})
+        if u.path == "/api/questions":
+            return self._json(200, {"questions": questions.listing(audience="user")})
         if u.path == "/api/teams":
             return self._json(200, {"teams": teams.catalog()})
         if u.path == "/api/turns":
@@ -217,6 +220,17 @@ class Handler(BaseHTTPRequestHandler):
         body = self._body()
         if body is None:
             return self._json(400, {"error": "body must be a JSON object"})
+        match = re.fullmatch(r"/api/questions/([^/]+)/(answer|cancel)", u.path)
+        if match:
+            try:
+                row = questions.answer(match[1], body.get("answer")) if match[2] == "answer" else questions.cancel(match[1])
+                return self._json(202 if match[2] == "answer" else 200, row)
+            except (questions.Conflict, orch.Busy) as exc:
+                return self._json(409, {"error": str(exc)})
+            except KeyError:
+                return self._json(404, {"error": "Unknown question"})
+            except ValueError as exc:
+                return self._json(400, {"error": str(exc)})
         if u.path.startswith('/api/push/'):
             push = getattr(self.server, 'push', None)
             if not push:
@@ -250,12 +264,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(409, {"error": "worker already finished; refresh the list"})
             except ValueError as exc:
                 return self._json(400, {"error": str(exc)})
-        if u.path in ("/api/playbooks", "/api/teams"):
+        if u.path in ("/api/playbooks", "/api/kernels", "/api/teams"):
             try:
                 with orch._lock:
-                    if u.path == "/api/playbooks":
+                    if u.path in ("/api/playbooks", "/api/kernels"):
                         if body.get("replace") and playbooks.slug(body.get("name")) == orch.load_cfg().get("playbook") and orch.REGISTRY.busy():
-                            return self._json(409, {"error": "active playbook is in use"})
+                            return self._json(409, {"error": "active AI Kernel is in use"})
                         row = playbooks.upload(body.get("name"), body.get("content"), body.get("replace") is True)
                     else:
                         row = teams.save(body.get("name"), body.get("team"))
@@ -305,7 +319,8 @@ class Handler(BaseHTTPRequestHandler):
             cfg, err = orch.update_cfg(body)
             if err:
                 return self._json(400, {"error": err})
-            o = {k: cfg.get(k) for k in ("vendor", "model", "effort", "name", "session_ref", "cwd", "turns", "playbook", "team", "permissions")}
+            o = {k: cfg.get(k) for k in ("vendor", "model", "effort", "name", "session_ref", "cwd", "turns", "playbook", "team", "permissions", "session_id", "session_title")}
+            o["kernel"] = cfg.get("playbook", "wisdom")
             o.update(busy=orch.REGISTRY.busy(), options=orch.options())
             return self._json(200, o)
         if u.path == '/api/orchestrator/end':
@@ -330,7 +345,7 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/delegate":
             if not isinstance(body.get("prompt"), str) or not body["prompt"].strip():
                 return self._json(400, {"error": "prompt is required"})
-            req = {k: body[k] for k in ("to", "prompt", "class", "model", "cwd", "schema", "wisdom", "timeout_s", "effort", "label", "playbook") if k in body}
+            req = {k: body[k] for k in ("to", "prompt", "class", "model", "cwd", "schema", "wisdom", "timeout_s", "effort", "label", "playbook", "kernel") if k in body}
             rid = orch.start_direct_delegation(req)
             return self._json(202, {"id": rid, "status": "started"})
         return self._json(404, {"error": "not found"})
@@ -341,7 +356,7 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         try:
             with orch._lock:
-                if re.fullmatch(r"/api/playbooks/[^/]+", path):
+                if re.fullmatch(r"/api/(?:playbooks|kernels)/[^/]+", path):
                     playbooks.delete(path.rsplit("/", 1)[-1], orch.load_cfg().get("playbook", "wisdom"))
                 elif re.fullmatch(r"/api/teams/[^/]+", path):
                     teams.delete(path.rsplit("/", 1)[-1])

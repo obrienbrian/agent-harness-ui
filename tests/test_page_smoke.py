@@ -21,8 +21,19 @@ class PageSmoke(unittest.TestCase):
     def test_help_and_commands(self):
         self.run_interaction('commands_browser.mjs')
 
+    @unittest.skipUnless(shutil.which('node'), 'Node is optional for CDP interactions')
+    def test_collaboration_controls(self):
+        self.run_interaction('collaboration_browser.mjs')
+
     def run_interaction(self, script):
-        server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(Fixture('idle', True, False)))
+        fixture = Fixture('idle', True, False)
+        if script == 'collaboration_browser.mjs':
+            from .fixture_server import iso
+            fixture.questions = [{'id':qid,'question':'Which region receives the report?', 'context':'A real HTTP fixture question.',
+                                  'options':['East','West'],'status':'open','source_agent':'worker:codex',
+                                  'session_id':'fixture-session','created_at':iso(1),'delegation_id':'dlg_http', 'answer':None,'delivery':None}
+                                 for qid in ('q_http','q_http_cancel')]
+        server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(fixture))
         server.daemon_threads = True
         threading.Thread(target=server.serve_forever, daemon=True).start()
         try:

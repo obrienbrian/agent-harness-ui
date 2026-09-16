@@ -214,7 +214,7 @@ class Api(unittest.TestCase):
             self.assertNotIn(banned, script, banned)
         self.assertEqual(set(re.findall(r"https?://[^\"' )]+", src)), {"http://www.w3.org/2000/svg"})
         endpoints = set(re.findall(r"'(/api/[a-z]+)", script))
-        self.assertEqual(endpoints, {"/api/state", "/api/stats", "/api/orchestrator", "/api/say", "/api/delegate", "/api/playbooks", "/api/teams", "/api/turn", "/api/receipt", "/api/turns", "/api/events", "/api/push", "/api/sessions", "/api/goal", "/api/clear"})
+        self.assertEqual(endpoints, {"/api/state", "/api/stats", "/api/orchestrator", "/api/say", "/api/delegate", "/api/playbooks", "/api/teams", "/api/turn", "/api/receipt", "/api/turns", "/api/events", "/api/push", "/api/sessions", "/api/goal", "/api/clear", "/api/questions"})
         self.assertIn('name="viewport"', src)
         self.assertIn("@media (max-width:859px)", src)
         self.assertIn("prefers-reduced-motion", src)

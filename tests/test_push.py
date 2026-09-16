@@ -64,6 +64,15 @@ class PushProof(unittest.TestCase):
         self.assertEqual(self.push.key.stat().st_mode & 0o777,0o600)
         self.assertEqual((self.push.root/'outbox.sqlite3').stat().st_mode & 0o777,0o600)
 
+    def test_question_attention_deep_link_does_not_duplicate_receipt_alert(self):
+        q={'id':'m_question','ts':now_iso(),'kind':'question','to':'user','meta':{'notification':'attention','question_id':'q_example','delegation_id':'dlg_example'}}
+        rec={'id':'m_question_receipt','ts':now_iso(),'kind':'receipt','to':'user','meta':{'root_code':'HARNESS_NEEDS_INPUT','question_id':'q_example','delegation_id':'dlg_example'}}
+        self.messages.write_text(json.dumps(q)+'\n'+json.dumps(rec)+'\n')
+        self.push.collect();self.code=201;self.push.deliver()
+        self.assertEqual(len(self.calls),1)
+        self.assertEqual(self.calls[0][1]['url'],'/#questions')
+        self.assertEqual(self.calls[0][1]['title'],'Harness needs attention')
+
     def test_partial_write_direct_receipt_attention_and_expiry(self):
         row={'id':'m_receipt','ts':now_iso(),'kind':'receipt','to':'user','meta':{'root_code':'HARNESS_WORKER_TIMEOUT','delegation_id':'dlg_demo'}}
         value=json.dumps(row)

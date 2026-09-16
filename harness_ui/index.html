@@ -25,7 +25,7 @@
     --ink:#e8e9ea; --ink-2:#a2a6a8; --ink-3:#6b7073; --ink-4:#4b5053;
     --accent:#4FC3A1; --accent-soft:rgba(79,195,161,.12); --accent-line:rgba(79,195,161,.32); --accent-ink:#07120e;
     --ok:#5fa37e; --ok-line:rgba(95,163,126,.28); --ok-soft:rgba(95,163,126,.22);
-    --warn:#c0964e; --warn-ink:#d8b779; --warn-line:rgba(192,150,78,.35);
+    --warn:#c0964e; --warn-ink:#d8b779; --warn-line:rgba(192,150,78,.35); --warn-band:rgba(192,150,78,.1);
     --err:#c76a62; --err-ink:#e0a7a2; --err-line:rgba(199,106,98,.3); --err-soft:rgba(199,106,98,.05); --err-band:rgba(199,106,98,.1);
     --r-ctl:8px; --r-panel:12px; --r-sheet:16px;
     --font:Inter,"SF Pro Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -44,7 +44,7 @@
     --ink:#18191a; --ink-2:#5a5f61; --ink-3:#8a8f91; --ink-4:#9a9fa1;
     --accent:#1c8f6e; --accent-soft:rgba(28,143,110,.08); --accent-line:rgba(28,143,110,.35); --accent-ink:#fff;
     --ok:#2f7a55; --ok-line:rgba(47,122,85,.35); --ok-soft:rgba(47,122,85,.16);
-    --warn:#8a6220; --warn-ink:#7a5518; --warn-line:rgba(138,98,32,.35);
+    --warn:#8a6220; --warn-ink:#7a5518; --warn-line:rgba(138,98,32,.35); --warn-band:rgba(138,98,32,.08);
     --err:#a0442f; --err-ink:#8a3323; --err-line:rgba(160,68,47,.3); --err-soft:rgba(160,68,47,.05); --err-band:rgba(160,68,47,.08);
     --shadow-overlay:0 16px 40px rgba(0,0,0,.14);
     --shimmer-a:rgba(0,0,0,.04); --shimmer-b:rgba(0,0,0,.09);
@@ -310,6 +310,7 @@
   .dlg.ok { border-color:var(--line); }
   .dlg.err { border-color:var(--err-line); }
   .dlg.pending { border-color:var(--line-strong); }
+  .dlg.ask { border-color:var(--warn-line); }
   .dlg .hd { display:flex; align-items:center; gap:8px; padding:10px 14px; flex-wrap:wrap; width:100%; text-align:left; color:var(--ink); }
   .dlg:not(.collapsed) .hd { border-bottom:1px solid var(--line-soft); }
   .dlg .hd .who { font:500 12px var(--font); }
@@ -498,7 +499,7 @@
     .edge-work, .discwrap .spin, .discwrap .halo, .shimmer i, .dots i, .dot.on, .dot.err, .blip, .badge .spin { animation:none !important; }
     .node.flash .discwrap .flash { animation:ah-lit 200ms ease-out 1 both; }
     .edge-lit { animation:ah-lit 200ms ease-out 1 both; }
-    .msg.hl { animation:none; }
+    .msg.hl, .question-card.hl { animation:none; }
     .dot.on, .blip { opacity:1; }
   }
 
@@ -561,7 +562,12 @@
   .exchange-state { font:10px var(--mono); color:var(--ink-3); }
   #exchange-list { display:flex; flex-direction:column; gap:7px; }
   .exchange-card { display:block; width:100%; text-align:left; padding:9px 11px; border:1px solid var(--line-strong); border-left:2px solid oklch(var(--ag-l) var(--ag-c) var(--hue) / .6); border-radius:4px 12px 12px 12px; background:var(--panel); }
+  .exchange-card { position:relative; width:calc(100% - 32px); margin-left:32px; border-radius:4px 16px 16px 16px; background:oklch(var(--ag-l) var(--ag-c) var(--hue) / .055); }
+  .exchange-card.outgoing { margin-left:0; margin-right:32px; border-radius:16px 4px 16px 16px; }
+  .exchange-avatar { position:absolute; left:-32px; top:12px; }
+  .exchange-card.outgoing .exchange-avatar { left:auto; right:-32px; }
   .exchange-card:hover { background:var(--raised); }
+  .exchange-card.question-bubble { border-color:var(--warn-ink); }
   .exchange-card.arrive { animation:exchange-arrive 240ms ease-out both; }
   .exchange-route { display:flex; align-items:center; gap:5px; font-size:10.5px; color:var(--ink-2); }
   .exchange-route .route-names { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; flex:1; }
@@ -680,6 +686,31 @@
     .playbook-card .btn { padding:8px; font-size:11px; }
   }
   @media(prefers-reduced-motion:reduce) { .exchange-card.arrive { animation:none; } }
+
+  /* ---------- session title ---------- */
+  .session-title-btn { display:flex; align-items:center; gap:0; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .session-title-btn:hover { color:var(--ink); text-decoration:underline; }
+  .session-title-btn.untitled { color:var(--ink-4); font-style:italic; }
+
+  /* ---------- questions inbox ---------- */
+  .questions-strip { border-color:var(--warn-line); background:var(--warn-band); }
+  .questions-strip .goal-title { color:var(--warn-ink); }
+  .question-card { border:1px solid var(--line-strong); border-left:3px solid oklch(var(--ag-l) var(--ag-c) var(--hue,0) / .7); border-radius:4px 10px 10px 10px; padding:12px 14px; margin:0 0 12px; background:var(--panel); }
+  .question-card.hl { animation:ah-hl 1.4s ease-out 1; }
+  .question-card.resolved { opacity:.75; }
+  .question-head { display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap; }
+  .question-head .ts { font:11px var(--mono); color:var(--ink-3); margin-left:auto; }
+  .question-text { font:13px/1.55 var(--font); color:var(--ink); overflow-wrap:anywhere; }
+  .question-context { margin-top:6px; font:11.5px/1.5 var(--font); color:var(--ink-3); overflow-wrap:anywhere; border-left:2px solid var(--line-strong); padding-left:8px; }
+  .question-answer { margin-top:9px; font:12.5px/1.5 var(--font); color:var(--ink-2); overflow-wrap:anywhere; padding-top:9px; border-top:1px solid var(--line-soft); }
+  .question-form { margin-top:10px; display:flex; flex-direction:column; gap:8px; }
+  .question-options { margin-bottom:2px; }
+  .question-form .hint { font:11px var(--font); color:var(--warn-ink); }
+
+  /* ---------- graph question badge ---------- */
+  .discwrap .ask { position:absolute; left:-3px; top:-3px; width:15px; height:15px; border-radius:50%; background:var(--warn); color:var(--bg); display:none; align-items:center; justify-content:center; font:700 9px var(--mono); box-shadow:0 0 0 2px var(--sunk); }
+  .node.has-question .discwrap .ask { display:flex; animation:ah-breath 1.8s ease-in-out infinite; }
+  @media(prefers-reduced-motion:reduce) { .node.has-question .discwrap .ask { animation:none; } }
 </style>
 </head>
 <body>
@@ -703,8 +734,9 @@
     <span class="cap" id="pill-cap"></span>
     <span class="st" id="pill-st" hidden>working</span>
   </button>
-  <button type="button" class="library-btn" id="playbooks-btn" aria-haspopup="dialog" title="Playbook library"><span class="library-mark" aria-hidden="true">W</span><span id="playbook-current">WISDOM</span><span class="library-caption">Playbooks</span></button>
+  <button type="button" class="library-btn" id="playbooks-btn" aria-haspopup="dialog" title="AI Kernel library"><span class="library-mark" aria-hidden="true"></span><span id="playbook-current">WISDOM</span><span class="library-caption">Kernels</span></button>
   <span class="tb-meta hide-phone" id="turns-count">0 turns</span>
+  <button type="button" class="tb-meta hide-phone session-title-btn" id="session-title-btn" title="Session title — click to rename">Untitled session</button>
   <span class="grow"></span>
   <span class="tb-meta hide-phone" id="loopback"></span>
   <span class="tb-meta" id="as-of">as of —</span>
@@ -745,7 +777,7 @@
         </div>
       </div>
       </div>
-      <aside class="exchange" aria-label="Latest agent exchanges"><div class="exchange-heading"><span class="caps">Latest exchanges</span><span class="exchange-state" id="exchange-state">Waiting</span></div><div id="exchange-list"></div></aside>
+      <aside class="exchange" aria-label="Latest agent exchanges"><div class="exchange-heading"><span class="caps">Team conversation</span><span class="exchange-state" id="exchange-state">Waiting</span></div><div id="exchange-list"></div></aside>
       </div>
       <div class="graph-foot" id="graph-foot" hidden></div>
     </section>
@@ -759,6 +791,7 @@
     </div>
 
     <section class="composer" aria-label="Composer">
+      <div class="goal-strip questions-strip" id="questions-strip" hidden role="status"><button class="goal-copy" type="button" id="questions-open"><div class="goal-title" id="questions-title"></div><div class="goal-meta" id="questions-meta"></div></button><button class="btn secondary" type="button" id="questions-toggle">Review</button></div>
       <div class="goal-strip" id="goal-strip" hidden><button class="goal-copy" type="button" id="goal-open"><div class="goal-title" id="goal-title"></div><div class="goal-meta" id="goal-meta"></div></button><button class="btn secondary" type="button" id="goal-toggle">Pause</button></div>
       <div class="cbox" id="cbox">
         <form class="box" id="composer-form">
@@ -801,6 +834,7 @@
     <div class="field"><label class="caps" for="set-model">Model</label><select class="input model-select" id="set-model"></select></div>
     <div class="field"><div class="caps">Effort <span class="opt" id="set-effort-note"></span></div><div class="seg small" id="set-effort"></div></div>
     <div class="field"><label class="caps" for="set-name">Display name</label><input class="input" id="set-name" type="text" placeholder="Orchestrator" autocomplete="off"></div>
+    <div class="field"><label class="caps" for="set-session-title">Session title <span class="opt">optional · shown in the header and history</span></label><input class="input" id="set-session-title" type="text" placeholder="Untitled session" maxlength="80" autocomplete="off"></div>
     <div class="field"><label class="caps" for="set-cwd">Working directory</label><input class="input mono" id="set-cwd" type="text" placeholder="/abs/path" autocomplete="off" spellcheck="false"></div>
     <div class="field"><label class="caps" for="set-permissions">Permissions</label><select class="input" id="set-permissions" aria-describedby="permissions-detail"></select><p class="v2-meta" id="permissions-detail"></p></div>
     <div class="session-reset"><div><strong>Start fresh</strong><p id="reset-hint">Keeps saved history</p></div>
@@ -819,13 +853,13 @@
 </div>
 
 <div class="popover setup library" id="playbooks" role="dialog" aria-modal="true" aria-labelledby="playbooks-title" hidden>
-  <div class="setup-heading"><div><div class="caps">Instructions for your agents</div><h2 id="playbooks-title">Playbook library</h2></div><button class="close-btn" type="button" id="playbooks-close" aria-label="Close playbook library">×</button></div>
+  <div class="setup-heading"><div><div class="caps">Instructions for your agents</div><h2 id="playbooks-title">AI Kernel library</h2></div><button class="close-btn" type="button" id="playbooks-close" aria-label="Close AI Kernel library">×</button></div>
   <div class="setup-scroll"><div class="setup-panel">
-    <p class="panel-intro">WISDOM comes ready to use. Bring your own markdown to give your agents a different way of working.</p>
-    <div id="set-playbooks" class="playbook-cards" role="radiogroup" aria-label="Playbook"></div>
+    <p class="panel-intro">Choose the instructions your agents work from. Use an included kernel or upload your own markdown.</p>
+    <div id="set-playbooks" class="playbook-cards" role="radiogroup" aria-label="AI Kernel"></div>
     <div class="upload-zone" id="playbook-drop"><span class="upload-symbol" aria-hidden="true">↥</span><strong>Drop a .md file here</strong><span>or choose one from your device · up to 256 KB</span><label class="btn secondary" for="playbook-upload">Choose markdown<input id="playbook-upload" type="file" accept=".md,text/markdown"></label><span id="upload-status" role="status"></span></div>
   </div></div>
-  <div class="setup-footer"><span id="playbook-hint">Switching starts a fresh session. History stays saved.</span><button type="button" class="btn tall" id="playbook-apply">Use playbook</button></div>
+  <div class="setup-footer"><span id="playbook-hint">Switching starts a fresh session. History stays saved.</span><button type="button" class="btn tall" id="playbook-apply">Use kernel</button></div>
 </div>
 
 <div class="palette" id="palette" role="dialog" aria-label="Command palette" hidden>
@@ -1083,7 +1117,6 @@ function renderTopbar(state) {
   const current = (state.orchestrator || {}).playbook || 'wisdom';
   const playbook = (state.playbooks || []).find((p) => p.slug === current);
   $('playbook-current').textContent = playbook ? playbook.name : current === 'wisdom' ? 'WISDOM' : current;
-  $('playbooks-btn').querySelector('.library-mark').textContent = current === 'wisdom' ? 'W' : 'M';
   const o = state.orchestrator || {};
   const lbl = orchestratorLabel();
   $('pill-name').textContent = lbl.primary;
@@ -1093,6 +1126,9 @@ function renderTopbar(state) {
   $('pill-dot').className = `dot${o.busy ? ' on' : ''}`;
   $('session-pill').classList.toggle('busy', !!o.busy);
   $('turns-count').textContent = `${o.turns || 0} turn${o.turns === 1 ? '' : 's'}`;
+  const sessionTitle = (o.session_title || '').trim();
+  $('session-title-btn').textContent = sessionTitle || 'Untitled session';
+  $('session-title-btn').classList.toggle('untitled', !sessionTitle);
   const asOf = state.as_of ? hhmmss(state.as_of) : '—';
   const offline = document.body.classList.contains('offline');
   $('as-of').textContent = (offline ? 'stale · ' : '') + `as of ${asOf}`;
@@ -1112,6 +1148,7 @@ function statusGlyph(id, d, state) {
 function renderRoster(state, d) {
   const roster = $('roster'); roster.textContent = '';
   const agents = state.agents || [];
+  const askCounts = questionsByAgent(state);
   const working = agents.filter((a) => (a.id === 'orchestrator' && state.orchestrator && state.orchestrator.busy) || d.pendingByWorker.has(a.id)).length;
   const rc = $('roster-count'); rc.textContent = working ? `${working} working` : String(agents.length); rc.classList.toggle('accent', working > 0);
   for (const a of agents) {
@@ -1130,10 +1167,11 @@ function renderRoster(state, d) {
     info.appendChild(cap);
     row.appendChild(info);
     const right = el('div', 'right');
+    if (askCounts.get(a.id)) right.appendChild(el('span', 'chip warn', '?'));
     const cnt = el('span', `cnt${a.messages ? '' : ' zero'}`, String(a.messages || 0));
     right.appendChild(cnt); right.appendChild(statusGlyph(a.id, d, state));
     row.appendChild(right);
-    row.title = `${a.name || a.id} — ${a.status || 'unknown'}${a.last_seen ? ' · last seen ' + hhmmss(a.last_seen) : ''}`;
+    row.title = `${a.name || a.id} — ${a.status || 'unknown'}${a.last_seen ? ' · last seen ' + hhmmss(a.last_seen) : ''}${askCounts.get(a.id) ? ' · has a question for you' : ''}`;
     row.addEventListener('click', () => focusAgent(a.id));
     roster.appendChild(row);
   }
@@ -1216,6 +1254,7 @@ function makeNode(id, kind) {
   const dsc = disc(id, kind === 'orch' ? 'd52' : kind === 'you' ? 'd24' : 'd40'); if (kind === 'more') dsc.classList.remove('orch');
   wrap.appendChild(dsc);
   wrap.appendChild(el('div', 'flash'));
+  if (kind === 'worker' || kind === 'orch') { const ask = el('div', 'ask', '?'); wrap.appendChild(ask); }
   if (kind === 'worker') { const dn = el('div', 'done'); wrap.appendChild(dn); }
   n.appendChild(wrap);
   if (kind === 'orch') { const txt = el('div', 'txt'); txt.appendChild(el('div', 'nm')); txt.appendChild(el('div', 'cap')); txt.appendChild(el('div', 'cap accent')); n.appendChild(txt); }
@@ -1247,6 +1286,7 @@ function renderGraph(state, d) {
   const slots = shown.map((a) => a.id); if (hidden.length) slots.push('+more');
   geo = geometry(phone, slots.length);
   const o = state.orchestrator || {};
+  const askCounts = questionsByAgent(state);
   const sig = `${phone}|${slots.join(',')}`;
   if (stage.dataset.sig !== sig) {
     stage.dataset.sig = sig; nodesBox.textContent = ''; edgesG.textContent = ''; fxG.textContent = ''; nodeEls.clear(); edgeEls.clear(); workEdges.clear();
@@ -1263,6 +1303,7 @@ function renderGraph(state, d) {
   // orchestrator
   const on = nodeEls.get('orchestrator'); const lbl = orchestratorLabel();
   on.classList.toggle('busy', !!o.busy); on.classList.toggle('sel', selectedAgent === 'orchestrator');
+  on.classList.toggle('has-question', !!askCounts.get('orchestrator'));
   on.querySelector('.disc').textContent = initialOf(lbl.primary);
   if (!phone) {
     const t = on.querySelector('.txt'); t.children[0].textContent = lbl.primary; t.children[1].textContent = lbl.caption;
@@ -1286,6 +1327,7 @@ function renderGraph(state, d) {
     p.querySelector('title').textContent = `${nameFor('orchestrator')} → ${nameFor(id)} · ${c} message${c === 1 ? '' : 's'}${d.lastBetween.get(['orchestrator', id].sort().join('|')) ? ' · last ' + hhmmss(d.lastBetween.get(['orchestrator', id].sort().join('|'))) : ''}`;
     n.classList.toggle('planned', !!a.ghost); p.classList.toggle('planned', !!a.ghost);
     n.classList.toggle('working', !!pending); n.classList.toggle('quiet', !pending && !a.messages); n.classList.toggle('sel', selectedAgent === id);
+    n.classList.toggle('has-question', !!askCounts.get(id));
     n.classList.toggle('done-ok', !!jd && jd.ok && !pending); n.classList.toggle('done-err', !!jd && !jd.ok && !pending);
     const dn = n.querySelector('.done'); dn.textContent = ''; if (jd && !pending) dn.appendChild(icon(jd.ok ? 'check' : 'tri', 9));
     n.querySelector('.disc').textContent = initialOf(nameFor(id));
@@ -1305,7 +1347,7 @@ function renderGraph(state, d) {
     // working edge overlay
     if (pending && !workEdges.has(id)) { const w = svgEl('path', { d: p.getAttribute('d'), class: 'edge-work' }); w.style.stroke = `oklch(var(--ag-l) var(--ag-c) ${hueOf(id)})`; fxG.appendChild(w); workEdges.set(id, w); }
     if (!pending && workEdges.has(id)) { workEdges.get(id).remove(); workEdges.delete(id); }
-    n.title = `${nameFor(id)} · ${graphCaption(id)}${label ? ' · ' + label : ''} — ${pending ? 'working' : a.status || 'idle'}`;
+    n.title = `${nameFor(id)} · ${graphCaption(id)}${label ? ' · ' + label : ''} — ${pending ? 'working' : a.status || 'idle'}${askCounts.get(id) ? ' · has a question for you' : ''}`;
   });
   // header / collapsed / footer
   graph.classList.toggle('collapsed', graphCollapsed || (phone && phoneAutoCollapsed));
@@ -1391,9 +1433,9 @@ function syncMotion() {
 document.addEventListener('visibilitychange', syncMotion);
 reducedMotion.addEventListener('change', syncMotion);
 function renderExchanges(state, newMsgs) {
-  const messages = (state.messages || []).filter((m) => m.from && m.to && m.from !== m.to && String(m.text || '').trim() && !(m.meta || {}).same_as_text).slice(-3);
+  const messages = (state.messages || []).filter((m) => m.from && m.to && m.from !== m.to && m.kind !== 'status' && !(m.kind === 'text' && (m.meta || {}).tool) && String(m.text || '').trim() && !(m.meta || {}).same_as_text).slice(-3);
   const sig = JSON.stringify(messages.map((m) => [m.id, m.text, nameFor(m.from), nameFor(m.to)]));
-  $('exchange-state').textContent = state.orchestrator.busy ? 'Working' : 'Caught up';
+  $('exchange-state').textContent = pendingQuestions(state).length ? 'Waiting for you' : state.orchestrator.busy ? 'Working' : 'Caught up';
   if (sig === exchangeSignature) return;
   exchangeSignature = sig;
   const box = $('exchange-list'); const existing = new Map(Array.from(box.children).map((n) => [n.dataset.message, n]));
@@ -1406,13 +1448,17 @@ function renderExchanges(state, newMsgs) {
     if (!card || card.dataset.signature !== signature) {
       if (card) card.remove();
       card = el('button', 'exchange-card'); card.type = 'button'; card.dataset.message = m.id; card.dataset.signature = signature; card.style.setProperty('--hue', hueOf(m.from));
+      card.classList.toggle('outgoing', m.from === 'orchestrator' || m.from === 'user');
+      card.classList.toggle('question-bubble', m.kind === 'question' || (m.meta || {}).root_code === 'HARNESS_NEEDS_INPUT');
+      const avatar = disc(m.from, 'd24'); avatar.classList.add('exchange-avatar'); card.appendChild(avatar);
       const route = el('div', 'exchange-route'); route.appendChild(el('span', 'route-names', `${nameFor(m.from)} → ${nameFor(m.to)}`));
-      const kind = m.kind === 'tool_use' ? 'Task' : m.kind === 'receipt' ? ((m.meta || {}).root_code === 'ok' ? 'Done' : 'Issue') : m.kind === 'error' ? 'Issue' : 'Message';
+      const kind = m.kind === 'question' || (m.meta || {}).root_code === 'HARNESS_NEEDS_INPUT' ? 'Question' : m.kind === 'answer' ? 'Answer' : m.kind === 'tool_use' ? 'Hand-off ↗' : m.kind === 'receipt' ? ((m.meta || {}).root_code === 'ok' ? 'Reply ↩' : 'Issue') : m.kind === 'error' ? 'Issue' : 'Message';
       route.appendChild(el('span', 'exchange-kind', kind));
       const time = el('time', '', hhmmss(m.ts)); time.dateTime = m.ts; route.appendChild(time);
       card.append(route, el('p', '', String(m.text).replace(/\s+/g, ' ').slice(0, 240)));
       card.title = 'Show this exchange in the feed';
       card.addEventListener('click', () => {
+        if ((m.meta || {}).question_id) { openQuestions(m.meta.question_id); return; }
         feedQuery = ''; $('feed-search').value = ''; selectedAgent = null;
         const taskId = derived.receiptOf.get(m.id) || m.id;
         const task = (lastState.messages || []).find((item) => item.id === taskId);
@@ -1495,7 +1541,8 @@ function errRow(m) {
 function delegationCard(t, receipt, d, isLatestTurn) {
   const rc = receipt ? ((receipt.meta || {}).root_code || 'unknown') : null;
   const pending = !receipt && d.pendingSet.has(t.id);
-  const state = pending ? 'pending' : receipt ? (rc === 'ok' ? 'ok' : 'err') : 'stale';
+  const needsInput = rc === 'HARNESS_NEEDS_INPUT';
+  const state = pending ? 'pending' : receipt ? (needsInput ? 'ask' : rc === 'ok' ? 'ok' : 'err') : 'stale';
   const card = el('div', `dlg ${state}`); card.dataset.mid = t.id; card.dataset.from = t.from; card.dataset.to = t.to; card.style.setProperty('--hue', hueOf(t.to));
   const defaultOpen = isLatestTurn || state !== 'ok';
   const open = cardOpen.has(t.id) ? cardOpen.get(t.id) : defaultOpen;
@@ -1512,7 +1559,8 @@ function delegationCard(t, receipt, d, isLatestTurn) {
   hd.appendChild(el('span', 'grow'));
   if (pending) { const b = el('span', 'badge work'); b.style.setProperty('--hue', hueOf(t.to)); b.appendChild(spinner(10)); const e = el('span', '', 'working · 0:00'); e.dataset.since = t.ts; e.dataset.prefix = 'working · '; b.appendChild(e); hd.appendChild(b); }
   else if (receipt) {
-    const b = el('span', `badge ${rc === 'ok' ? 'ok' : 'err'}`); b.appendChild(icon(rc === 'ok' ? 'check' : 'tri', 8)); b.appendChild(document.createTextNode(rc)); hd.appendChild(b);
+    const b = el('span', `badge ${needsInput ? 'work' : rc === 'ok' ? 'ok' : 'err'}`); if (needsInput) b.style.setProperty('--hue', hueOf(t.to));
+    b.appendChild(icon(rc === 'ok' ? 'check' : 'tri', 8)); b.appendChild(document.createTextNode(needsInput ? 'needs your input' : rc)); hd.appendChild(b);
     if (receipt.meta && receipt.meta.duration_ms != null) hd.appendChild(el('span', 'dur', fmtDur(receipt.meta.duration_ms)));
   } else hd.appendChild(el('span', 'badge', 'no receipt'));
   const chev = el('span', 'chev'); chev.appendChild(icon(open ? 'up' : 'down', 9)); hd.appendChild(chev);
@@ -1525,7 +1573,12 @@ function delegationCard(t, receipt, d, isLatestTurn) {
   if (pending) { const sh = el('div', 'shimmer'); sh.appendChild(el('i')); sh.appendChild(el('i')); card.appendChild(sh); }
   else if (receipt) {
     const res = el('div', 'res'); res.appendChild(textBody(receipt.text || (rc === 'ok' ? '(empty result)' : rc), receipt.id));
-    if (rc !== 'ok') {
+    if (needsInput && receipt.meta && receipt.meta.question_id) {
+      const acts = el('div', 'acts');
+      const answer = el('button', '', 'Answer this question'); answer.type = 'button';
+      answer.addEventListener('click', () => openQuestions(receipt.meta.question_id));
+      acts.appendChild(answer); res.appendChild(acts);
+    } else if (rc !== 'ok') {
       const acts = el('div', 'acts');
       const retry = el('button', '', 'retry as readonly'); retry.type = 'button';
       retry.addEventListener('click', () => openDelegate({ to: workerVendor(t.to), model: workerModel(t.to), cls: 'readonly', prompt: t.text || '' }));
@@ -1710,8 +1763,10 @@ function renderComposer(state, d) {
 const COMMANDS = [
   {name:'help', usage:'/help', detail:'How to use Harness and its commands'},
   {name:'goal', usage:'/goal [objective | pause | resume | edit | clear]', detail:'Start or manage a persistent Codex goal'},
-  {name:'clear', usage:'/clear [name]', detail:'Fresh conversation and empty feed; history stays saved'},
-  {name:'new', usage:'/new [name]', detail:'Fresh conversation while keeping the feed visible'},
+  {name:'questions', usage:'/questions', detail:'Review and answer pending questions from your agents'},
+  {name:'clear', usage:'/clear [title]', detail:'Fresh conversation and empty feed; optional title for the new session'},
+  {name:'new', usage:'/new [title]', detail:'Fresh conversation while keeping the feed visible; optional session title'},
+  {name:'rename', usage:'/rename <title>', detail:'Set this session’s title, shown in the header and history'},
   {name:'stop', usage:'/stop', detail:'Stop the current turn; pause a running goal'},
   {name:'model', usage:'/model [model-id]', detail:'Choose the model for your next turn'},
   {name:'effort', usage:'/effort [level]', detail:'Choose reasoning effort for the active model'},
@@ -1720,10 +1775,11 @@ const COMMANDS = [
   {name:'sessions', usage:'/sessions', detail:'Inspect sessions, stop work, or end a session'},
   {name:'status', usage:'/status', detail:'Current model, workspace, and goal status'},
   {name:'history', usage:'/history', detail:'Browse saved turns and export markdown'},
-  {name:'playbook', usage:'/playbook', detail:'WISDOM and your uploaded markdown instructions'},
+  {name:'kernel', usage:'/kernel', detail:'An included AI Kernel or your uploaded markdown instructions'},
   {name:'team', usage:'/team', detail:'Choose worker roles and presets'},
   {name:'theme', usage:'/theme [light|dark]', detail:'Change this device’s appearance'}
 ];
+const LEGACY_COMMAND_ALIASES = {playbook: 'kernel'};
 let slashIndex = 0, slashCandidates = [];
 function insertCommand(command) { composerInput.value = '/' + command.name + ' '; slashIndex = 0; closeOverlay(); composerInput.focus(); autosize(); updateSlash(); renderComposer(lastState, derived); }
 function updateSlash() {
@@ -1772,7 +1828,8 @@ async function submitComposer() {
   if (!text.trim()) return;
   const command = /^\s*\/([a-z][\w-]*)(?:\s+([\s\S]*))?$/i.exec(text);
   if (command) {
-    const name = command[1].toLowerCase(), args = (command[2] || '').trim();
+    const rawName = command[1].toLowerCase(), args = (command[2] || '').trim();
+    const name = LEGACY_COMMAND_ALIASES[rawName] || rawName;
     if (!COMMANDS.some((c) => c.name === name)) { toast('Command unavailable here', 'Use /help for supported commands. Terminal-only commands are not sent as prompts.', 'neutral'); return; }
     slashRow.hidden = true;
     try { const clear = await runCommand(name,args); if (clear !== false && composerInput.value === text) { composerInput.value = ''; autosize(); } }
@@ -1825,7 +1882,7 @@ function toggleGraph() { graphCollapsed = !graphCollapsed; phoneAutoCollapsed = 
 function toggleTheme() { applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'); toast(`${document.documentElement.dataset.theme === 'light' ? 'Light' : 'Dark'} theme`, '', 'neutral'); }
 
 /* ---- session setup ---- */
-const setState = { vendor: 'claude', model: '', effort: '', name: '', cwd: '', permissions: 'full-access', team: {mode:'suggest',roles:[]} };
+const setState = { vendor: 'claude', model: '', effort: '', name: '', session_title: '', cwd: '', permissions: 'full-access', team: {mode:'suggest',roles:[]} };
 function seg(container, items, value, onPick, extraCls) {
   container.textContent = '';
   items.forEach((it) => { const b = el('button', `${it === value ? 'on' : ''}${extraCls && extraCls(it) ? ' ' + extraCls(it) : ''}`, it === 'medium' && items.length > 4 ? 'med' : it); b.type = 'button'; b.dataset.value = it; b.title = it; b.setAttribute('aria-pressed', String(it === value)); b.addEventListener('click', () => onPick(it)); container.appendChild(b); });
@@ -1841,6 +1898,7 @@ function renderSettings() {
   seg($('set-effort'), opts.efforts, setState.effort, (e) => { dirtySettings = true; setState.effort = e; renderSettings(); });
   for (const b of $('set-effort').children) { b.disabled = !!supported && !supported.includes(b.dataset.value); b.title = b.disabled ? 'This model does not support this effort' : ''; }
   if (document.activeElement !== $('set-name')) $('set-name').value = setState.name || '';
+  if (document.activeElement !== $('set-session-title')) $('set-session-title').value = setState.session_title || '';
   if (document.activeElement !== $('set-cwd')) $('set-cwd').value = setState.cwd || '';
   const policies = (o.options || {}).permissions || [{id:'full-access',label:'Full access · no approvals',description:'Update the harness core to manage permissions.'}];
   const permissionSelect = $('set-permissions'); permissionSelect.textContent = '';
@@ -1853,7 +1911,7 @@ function renderSettings() {
 }
 function openSettings(tab = 'agent') {
   const o = lastState && lastState.orchestrator || {};
-  if (!dirtySettings) Object.assign(setState, { vendor: o.vendor || 'claude', model: o.model || '', effort: o.effort || '', name: o.name || '', cwd: o.cwd || '', permissions: o.permissions || 'full-access', team: JSON.parse(JSON.stringify(o.team || {mode:'suggest',roles:[]})) });
+  if (!dirtySettings) Object.assign(setState, { vendor: o.vendor || 'claude', model: o.model || '', effort: o.effort || '', name: o.name || '', session_title: o.session_title || '', cwd: o.cwd || '', permissions: o.permissions || 'full-access', team: JSON.parse(JSON.stringify(o.team || {mode:'suggest',roles:[]})) });
   renderSettings(); showOverlay('settings'); selectSettingsTab(tab);
 }
 $('set-model').addEventListener('change', () => { dirtySettings = true; setState.model = $('set-model').value; renderSettings(); });
@@ -1876,7 +1934,9 @@ document.querySelector('.setup-tabs').addEventListener('keydown', (e) => {
 $('animate-traffic').addEventListener('change', () => { store('ah-motion', $('animate-traffic').checked ? 'on' : 'off'); syncMotion(); });
 syncMotion();
 $('session-pill').addEventListener('click', () => { if (openOverlay === 'settings') closeOverlay(); else openSettings(); });
+$('session-title-btn').addEventListener('click', () => { openSettings(); setTimeout(() => $('set-session-title').focus(), 30); });
 $('set-name').addEventListener('input', () => { dirtySettings = true; setState.name = $('set-name').value; });
+$('set-session-title').addEventListener('input', () => { dirtySettings = true; setState.session_title = $('set-session-title').value; });
 $('set-cwd').addEventListener('input', () => { dirtySettings = true; setState.cwd = $('set-cwd').value; });
 $('set-permissions').addEventListener('change', () => { dirtySettings = true; setState.permissions = $('set-permissions').value; renderSettings(); });
 $('apply-btn').addEventListener('click', () => {
@@ -1885,6 +1945,7 @@ $('apply-btn').addEventListener('click', () => {
   if (setState.model && setState.model !== o.model) { body.model = setState.model; changes.push(`model → ${setState.model}`); }
   if (setState.effort && setState.effort !== o.effort) { body.effort = setState.effort; changes.push(`effort → ${setState.effort}`); }
   if ((setState.name || '').trim() && setState.name.trim() !== o.name) { body.name = setState.name.trim(); changes.push(`name → ${body.name}`); }
+  if ((setState.session_title || '').trim().slice(0,80) !== (o.session_title || '').trim()) { body.session_title = (setState.session_title || '').trim().slice(0,80); changes.push('session title updated'); }
   if ((setState.cwd || '').trim() && setState.cwd.trim() !== o.cwd) { body.cwd = setState.cwd.trim(); changes.push('cwd changed'); }
   if (setState.permissions !== (o.permissions || 'full-access')) { body.permissions = setState.permissions; changes.push('permissions updated · new session'); }
   if (JSON.stringify(setState.team) !== JSON.stringify(o.team || {mode:'suggest',roles:[]})) { body.team = setState.team; changes.push('team updated'); }
@@ -1905,6 +1966,7 @@ $('reset-btn').addEventListener('click', () => {
 
 /* ---- command palette ---- */
 $('pal-icon').appendChild(icon('search', 13)); $('search-btn').appendChild(icon('search', 17)); $('menu-btn').appendChild(icon('menu', 17)); $('brand').insertBefore(icon('mark', 14), $('brand').firstChild);
+document.querySelector('#playbooks-btn .library-mark').appendChild(icon('rect', 12));
 $('palette-btn').textContent = isMac ? '⌘K' : 'Ctrl K';
 let palIndex = 0, palMode = null;
 function palActions() {
@@ -1913,8 +1975,9 @@ function palActions() {
   return [
     { group: 'Workspace', icon: 'lines', label: 'Help & commands…', right: '/help', run: () => { openHelp(); return true; } },
     { group: 'Work', icon: 'circ', label: 'Goal…', right: '/goal', run: () => { openGoal(); return true; } },
+    { group: 'Work', icon: 'tri', label: 'Questions…', right: pendingQuestions(lastState || {questions:[]}).length ? `${pendingQuestions(lastState || {questions:[]}).length} pending` : '/questions', run: () => { openQuestions(); return true; } },
     { group: 'Workspace', icon: 'lines', label: 'Session setup…', run: () => { openSettings(); return true; } },
-    { group: 'Workspace', icon: 'rect', label: 'Playbook library…', right: 'WISDOM or your own markdown', run: () => { openPlaybooks(); return true; } },
+    { group: 'Workspace', icon: 'rect', label: 'AI Kernel library…', right: 'An included kernel or your own markdown', run: () => { openPlaybooks(); return true; } },
     { group: 'Workspace', icon: 'sun', label: 'Preferences & alerts…', run: () => { openSettings('preferences'); return true; } },
     { group: 'Orchestrator', icon: 'lines', label: 'Set effort…', right: (((o.options || {})[o.vendor] || {}).efforts || []).join(' · '), run: () => { palMode = 'effort'; palIndex = 0; $('pal-input').value = ''; renderPalette(); return true; } },
     { group: 'Orchestrator', icon: 'arrowR', label: `Switch vendor to ${other}`, right: 'drops the session', run: () => { const op = (o.options || {})[other] || { models: [], efforts: [] }; setOrch({ vendor: other, model: op.models[0], effort: op.efforts[Math.min(2, op.efforts.length - 1)] }, `vendor → ${other}`); } },
@@ -2031,11 +2094,13 @@ function applyState(state) {
   for (const m of newMsgs) if (m.kind === 'receipt' && String(m.from).startsWith('worker:')) justDone.set(m.from, { at: now, ok: ((m.meta || {}).root_code) === 'ok', dur: (m.meta || {}).duration_ms });
   renderTopbar(state); renderRoster(state, derived); renderSystem(state); renderGraph(state, derived); renderExchanges(state, newMsgs); renderFeed(state, derived, newMsgs); renderComposer(state, derived); renderSpans(state, derived);
   renderGoal(state.goal);
+  renderQuestionsStrip(state);
   if (state.today) $('today-stats').textContent = `Today · ${state.today.turns} turns · ${state.today.delegations} delegations · ${fmtTok(state.today.tokens)} tokens · ${state.today.ok_rate == null ? '—' : Math.round(state.today.ok_rate * 100) + '%'} ok · median ${fmtDur(state.today.p50_duration_ms)}`;
   if (statsFresh && lastStats) renderStats(lastStats);
   if (initialized && newMsgs.length) enqueueHops(newMsgs);
   if (openOverlay === 'playbooks') updatePlaybookAction();
   if (openOverlay === 'settings') renderSettings();
+  if (openOverlay === 'v2-drawer' && $('v2-title').textContent === 'Questions') renderQuestionsPanel();
   initialized = true;
   return newMsgs.length > 0;
 }
@@ -2108,15 +2173,15 @@ function renderPlaybooks() {
       updatePlaybookAction();
     });
     const copy = el('div', 'playbook-copy'), name = el('div', 'playbook-name', p.name);
-    if (p.slug === 'wisdom') name.appendChild(el('span', 'status-tag on', 'Default'));
+    if (p.slug === 'wisdom') name.appendChild(el('span', 'status-tag on', 'Included'));
     if (current === p.slug) name.appendChild(el('span', 'status-tag', 'In use'));
     copy.appendChild(name);
-    copy.appendChild(el('div', 'playbook-description', p.slug === 'wisdom' ? 'The built-in standard for planning, implementation, and review.' : p.slug === 'none' ? 'No additional playbook. Your agent’s global instructions still apply.' : p.summary || 'Your custom instructions for the orchestrator and its workers.'));
+    copy.appendChild(el('div', 'playbook-description', p.slug === 'wisdom' ? 'An included starting point for planning, implementation, and review.' : p.slug === 'none' ? 'No additional kernel. Your agent’s global instructions still apply.' : p.summary || 'Your uploaded instructions for the orchestrator and its workers.'));
     if (p.sha256) { const info = el('div', 'v2-meta', `${Math.ceil(p.bytes / 1024)} KB · ${p.sha256.slice(0,8)}`); info.title = 'SHA-256 ' + p.sha256; copy.appendChild(info); }
     label.append(radio, copy); row.appendChild(label);
     if (!p.builtin) {
       const del = el('button', 'btn secondary', 'Delete'); del.type = 'button'; del.disabled = p.slug === current; del.setAttribute('aria-label', 'Delete ' + p.name);
-      del.addEventListener('click', () => { del.disabled = true; removeDocument('/api/playbooks/' + encodeURIComponent(p.slug)).then(() => { if (selectedPlaybook === p.slug) selectedPlaybook = current; return refreshCatalogs(); }).catch((e) => { del.disabled = false; toast('Could not delete playbook', e.message, 'err'); }); }); row.appendChild(del);
+      del.addEventListener('click', () => { del.disabled = true; removeDocument('/api/playbooks/' + encodeURIComponent(p.slug)).then(() => { if (selectedPlaybook === p.slug) selectedPlaybook = current; return refreshCatalogs(); }).catch((e) => { del.disabled = false; toast('Could not delete kernel', e.message, 'err'); }); }); row.appendChild(del);
     }
     box.appendChild(row);
   });
@@ -2126,7 +2191,7 @@ function updatePlaybookAction() {
   const current = (lastState && lastState.orchestrator.playbook) || 'wisdom';
   const busy = !!(lastState && lastState.orchestrator.busy);
   $('playbook-apply').disabled = uploadingPlaybook || selectedPlaybook === current || busy;
-  $('playbook-apply').textContent = selectedPlaybook === current ? 'Currently in use' : 'Use playbook';
+  $('playbook-apply').textContent = selectedPlaybook === current ? 'Currently in use' : 'Use kernel';
   $('playbook-hint').textContent = busy ? 'You can upload now. Switch when the current turn finishes.' : 'Switching starts a fresh session. History stays saved.';
 }
 async function uploadPlaybook(file) {
@@ -2136,7 +2201,7 @@ async function uploadPlaybook(file) {
     if (!file.name.toLowerCase().endsWith('.md') || file.size > 256 * 1024) throw new Error('Choose a .md file of at most 256 KB.');
     const content = new TextDecoder('utf-8', {fatal:true}).decode(await file.arrayBuffer());
     const p = await postJSON('/api/playbooks', {name:file.name.slice(0,-3),content});
-    selectedPlaybook = p.slug; await refreshCatalogs(); $('upload-status').textContent = file.name + ' is ready. Select Use playbook to switch.';
+    selectedPlaybook = p.slug; await refreshCatalogs(); $('upload-status').textContent = file.name + ' is ready. Select Use kernel to switch.';
   } catch (err) { $('upload-status').textContent = err.message; toast('Upload failed', err.message, 'err'); }
   finally { uploadingPlaybook = false; $('playbook-upload').value = ''; $('playbook-upload').disabled = false; updatePlaybookAction(); }
 }
@@ -2153,8 +2218,8 @@ $('playbook-apply').addEventListener('click', async () => {
   try {
     const updated = await postJSON('/api/orchestrator', {playbook:selectedPlaybook});
     if (lastState) { lastState.orchestrator = {...lastState.orchestrator, ...updated}; renderTopbar(lastState); }
-    closeOverlay(); toast('Playbook selected', 'Your next conversation will use it.'); pollState(true);
-  } catch (e) { toast('Could not select playbook', e.message, 'err'); }
+    closeOverlay(); toast('Kernel selected', 'Your next conversation will use it.'); pollState(true);
+  } catch (e) { toast('Could not select kernel', e.message, 'err'); }
   finally { updatePlaybookAction(); }
 });
 function selectControl(values, value, onChange) {
@@ -2201,9 +2266,16 @@ async function runCommand(name, args) {
   const o = lastState && lastState.orchestrator || {};
   if (name === 'help') { openHelp('commands'); return; }
   if (name === 'settings' || name === 'team') { openSettings(name === 'team' ? 'team' : 'agent'); return; }
-  if (name === 'playbook') { openPlaybooks(); return; }
+  if (name === 'kernel') { openPlaybooks(); return; }
   if (name === 'history') { openHistory(); return; }
   if (name === 'sessions') { openSessions(); return; }
+  if (name === 'questions') { openQuestions(); return; }
+  if (name === 'rename') {
+    const title = args.trim();
+    if (!title) throw new Error('Give this session a title, e.g. /rename Rollback fixes.');
+    if (title.length > 80) throw new Error('Session titles are limited to 80 characters.');
+    await postJSON('/api/orchestrator', {session_title:title}); await refreshCommandState(); toast('Session renamed', title); return;
+  }
   if (name === 'delegate') { openDelegate(parseSlash(args)); return false; }
   if (name === 'theme') { if (!args) toggleTheme(); else if (['light','dark'].includes(args)) applyTheme(args); else throw new Error('Use /theme light or /theme dark.'); return; }
   if (name === 'status') {
@@ -2220,7 +2292,9 @@ async function runCommand(name, args) {
     await refreshCommandState(); toast(action === 'set' ? 'Goal started' : action === 'edit' ? 'Goal saved' : 'Goal ' + (action === 'pause' ? 'pausing' : action === 'resume' ? 'resumed' : 'cleared')); return;
   }
   if (name === 'clear' || name === 'new') {
-    await postJSON('/api/clear', {clear_view:name === 'clear', ...(args ? {name:args} : {})});
+    const title = args.trim();
+    if (title.length > 80) throw new Error('Session titles are limited to 80 characters.');
+    await postJSON('/api/clear', {clear_view:name === 'clear', ...(title ? {name:title} : {})});
     if (name === 'clear') { feedQuery = ''; $('feed-search').value = ''; selectedAgent = null; unread = 0; firstUnreadId = null; cardOpen.clear(); }
     await refreshCommandState(); toast('Fresh conversation', name === 'clear' ? 'Feed cleared. Saved history is still available.' : 'Previous messages remain in the feed.'); return;
   }
@@ -2260,9 +2334,10 @@ function openHelp(tab = 'start') {
       ['1 · Set your workspace','Open the model pill at the top. Choose Codex or Claude, a model, effort, and the working directory on your desktop. Changes apply to the next turn.'],
       ['2 · Start a conversation','Describe what you want in the composer. Enter sends; Shift+Enter adds a line. The graph shows real exchanges between agents. Tap an exchange or a message to read more.'],
       ['3 · Keep a goal moving','With Codex selected, type /goal followed by an objective and a clear finish condition. Harness continues turns until the native goal completes, becomes blocked, reaches a limit, or you stop it. Use /goal to inspect usage, pause, resume, edit, or clear it. An optional token budget is available in the goal form. After a server restart, resume explicitly.'],
-      ['Pause, stop, and start fresh','Stop cancels the active turn and its workers; a running goal pauses too. It does not undo changes already made. /clear starts a fresh conversation and clears the feed. /new starts fresh but keeps the feed. Both keep saved history and require current work to finish or stop first.'],
-      ['Your instructions and team','WISDOM is the default playbook. Open Playbooks at the top, or /playbook, to upload your own .md file up to 256 KB and select it explicitly. /team sets worker roles. /delegate opens a direct worker task; review it before sending.'],
-      ['Sessions and saved work','Sessions shows active work and lets you stop or end sessions. History keeps past turns and markdown exports. Open a worker receipt to send a follow-up in that worker’s session. Ending a session keeps its saved history.'],
+      ['Pause, stop, and start fresh','Stop cancels the active turn and its workers; a running goal pauses too. It does not undo changes already made. /clear starts a fresh conversation and clears the feed. /new starts fresh but keeps the feed. Both accept an optional title for the new session. /rename retitles the current session without starting over. All three keep saved history and require current work to finish or stop first.'],
+      ['Your instructions and team','Choose the instructions your agents work from in AI Kernels at the top, or /kernel — use an included kernel or upload your own .md file up to 256 KB and select it explicitly. /team sets worker roles. /delegate opens a direct worker task; review it before sending.'],
+      ['Questions from your agents','When a worker or the orchestrator needs your input, it shows as a strip above the composer and in /questions. Answer with an offered option or your own words, or cancel it — nothing is ever answered for you. Answers are held back while a turn or goal is running.'],
+      ['Sessions and saved work','Sessions shows active work and lets you stop or end sessions. History keeps past turns, their session titles, and markdown exports. Open a worker receipt to send a follow-up in that worker’s session. Ending a session keeps its saved history.'],
       ['From your phone','Keep Tailscale connected and your desktop awake. You can close the phone app while work continues on the desktop. Preferences contains background alerts, a test notification, theme, and motion settings.'],
       ['Quick controls','Type /help for commands, or use the ? button anytime. Ctrl/Cmd+K opens the command palette. Escape closes a panel. Model effort support is learned during normal use; no probe calls are made.']
     ]) { const s = el('section','help-section'); s.append(el('h3','',title),el('p','',body)); content.appendChild(s); }
@@ -2356,10 +2431,11 @@ async function openHistory() {
   try {
     const data = await getJSON('/api/turns?limit=50');
     if (!data.turns.length) box.appendChild(el('p','','No saved turns yet.'));
-    data.turns.forEach((t) => { const b = el('button','btn secondary', `${hhmmss(t.started_at)} · ${t.status} · ${t.prompt_head || t.turn_id}`); b.type = 'button'; b.style.cssText = 'display:block;width:100%;text-align:left;margin:8px 0;white-space:normal';
+    data.turns.forEach((t) => { const b = el('button','btn secondary', [t.session_title, hhmmss(t.started_at), t.status, t.prompt_head || t.turn_id].filter(Boolean).join(' · ')); b.type = 'button'; b.style.cssText = 'display:block;width:100%;text-align:left;margin:8px 0;white-space:normal';
       b.addEventListener('click', async () => {
         try {
           const detail = await getJSON('/api/turn/' + encodeURIComponent(t.turn_id)); const content = drawer('Turn ' + shortTurn(t.turn_id));
+          if (detail.session_title || t.session_title) content.appendChild(el('div','v2-meta','Session: ' + (detail.session_title || t.session_title)));
           const download = el('button','btn secondary','Export markdown'); download.addEventListener('click', () => exportMarkdown(t, detail.messages || [])); content.appendChild(download);
           const jump = el('button','btn secondary','Jump to feed'); jump.addEventListener('click', () => { const target = Array.from(feedInner.querySelectorAll('[data-turn]')).find((n) => n.dataset.turn === t.turn_id); if (target) { closeOverlay(); target.scrollIntoView({block:'start'}); } else toast('Older turn', 'Its saved transcript is shown here.', 'neutral'); }); content.appendChild(jump);
           for (const m of detail.messages || []) { content.append(el('div','v2-meta', `${m.from} → ${m.to} · ${m.kind}`), el('pre','',m.text)); if (m.meta && m.meta.delegation_id) content.appendChild(receiptButton(m.meta.delegation_id)); }
@@ -2452,18 +2528,179 @@ async function openSessions() {
   } catch (e) { box.appendChild(el('p','err',e.message)); }
 }
 
+/* ================= questions inbox ================= */
+/* Answers are typed by the human; nothing here is guessed or auto-filled. */
+const questionSubmissions = new Set();
+const questionDrafts = new Map(); // id -> {text}
+const openQuestionCardEls = new Map(); // id -> card element
+function questionDraft(id) { if (!questionDrafts.has(id)) questionDrafts.set(id, {text:''}); return questionDrafts.get(id); }
+function pendingQuestions(state) { return (state.questions || []).filter((q) => q.status === 'open'); }
+function resolvedQuestions(state) { return (state.questions || []).filter((q) => q.status !== 'open'); }
+function questionsByAgent(state) {
+  const map = new Map();
+  for (const q of pendingQuestions(state)) { const id = q.source_agent || 'orchestrator'; map.set(id, (map.get(id) || 0) + 1); }
+  return map;
+}
+function questionBlockedReason(q, state) {
+  const o = state.orchestrator || {};
+  if (o.busy) return `Answers are disabled while ${nameFor('orchestrator')} is working.`;
+  if (state.goal && (state.goal.running || (state.goal.goal || {}).status === 'active')) return 'Answers are disabled while a goal is active.';
+  if (q.session_id && o.session_id && q.session_id !== o.session_id) return 'This question is from a previous session and can no longer be answered.';
+  return '';
+}
+function renderQuestionsStrip(state) {
+  const pending = pendingQuestions(state);
+  const strip = $('questions-strip');
+  strip.hidden = !pending.length;
+  if (!pending.length) return;
+  $('questions-title').textContent = `${pending.length} question${pending.length === 1 ? '' : 's'} need${pending.length === 1 ? 's' : ''} your input`;
+  const names = Array.from(new Set(pending.map((q) => nameFor(q.source_agent || 'orchestrator'))));
+  $('questions-meta').textContent = 'From ' + names.slice(0,3).join(', ') + (names.length > 3 ? ` +${names.length - 3}` : '');
+}
+$('questions-open').addEventListener('click', () => openQuestions());
+$('questions-toggle').addEventListener('click', () => openQuestions());
+function openQuestionCard(q, state) {
+  let card = openQuestionCardEls.get(q.id);
+  if (!card) { card = el('div','question-card'); card.dataset.id = q.id; openQuestionCardEls.set(q.id, card); }
+  card.style.setProperty('--hue', hueOf(q.source_agent || 'orchestrator'));
+  let head = card.querySelector('.question-head');
+  if (!head) { head = el('div','question-head'); card.insertBefore(head, card.firstChild); }
+  head.textContent = '';
+  head.appendChild(hueSpan(q.source_agent || 'orchestrator', 'who hue', nameFor(q.source_agent || 'orchestrator')));
+  head.appendChild(el('span','chip','open'));
+  const ts = el('span','ts',relTime(q.created_at)); ts.title = hhmmss(q.created_at); head.appendChild(ts);
+  let qtext = card.querySelector('.question-text');
+  if (!qtext) { qtext = el('div','question-text'); card.appendChild(qtext); }
+  qtext.textContent = q.question;
+  let ctx = card.querySelector('.question-context');
+  if (q.context) { if (!ctx) { ctx = el('div','question-context'); card.appendChild(ctx); } ctx.textContent = q.context; }
+  else if (ctx) ctx.remove();
+  let form = card.querySelector('.question-form');
+  if (!form) {
+    form = el('form','question-form');
+    const optsRow = el('div','chips-row question-options'); form.appendChild(optsRow);
+    const textarea = el('textarea','input'); textarea.rows = 2; textarea.placeholder = 'Type your answer…'; textarea.maxLength = 4000; textarea.setAttribute('aria-label','Your answer');
+    textarea.addEventListener('input', () => { questionDraft(q.id).text = textarea.value; questionDraft(q.id).error = ''; });
+    form.appendChild(textarea);
+    const actions = el('div','actions');
+    const submit = el('button','btn tall','Send answer'); submit.type = 'submit';
+    const cancel = el('button','btn secondary','Cancel question'); cancel.type = 'button';
+    const hintEl = el('span','hint');
+    actions.append(submit, cancel, hintEl); form.appendChild(actions);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const answer = textarea.value.trim();
+      if (!answer) { toast('Add an answer', 'Pick an option or type a reply.', 'neutral'); return; }
+      if (questionSubmissions.has(q.id)) return;
+      questionSubmissions.add(q.id); submit.disabled = true; cancel.disabled = true;
+      try {
+        await postJSON('/api/questions/' + encodeURIComponent(q.id) + '/answer', {answer});
+        questionDrafts.delete(q.id); toast('Answer sent'); await refreshCommandState();
+      } catch (err) {
+        questionDraft(q.id).error = err.message || 'Try again once the current turn finishes.';
+        hintEl.textContent = questionDraft(q.id).error;
+        toast(err.status === 409 ? 'Could not send yet' : 'Could not send answer', err.message, 'err');
+      } finally { questionSubmissions.delete(q.id); renderQuestionsPanel(); }
+    });
+    cancel.addEventListener('click', async () => {
+      cancel.disabled = true;
+      try { await postJSON('/api/questions/' + encodeURIComponent(q.id) + '/cancel', {}); questionDrafts.delete(q.id); toast('Question cancelled'); await refreshCommandState(); }
+      catch (err) { toast('Could not cancel', err.message, 'err'); }
+      finally { cancel.disabled = false; }
+    });
+    card.appendChild(form);
+  }
+  const textarea = form.querySelector('textarea');
+  if (document.activeElement !== textarea) textarea.value = questionDraft(q.id).text || '';
+  const optsRow = form.querySelector('.question-options');
+  const optionsKey = JSON.stringify(q.options || []);
+  if (optsRow.dataset.options !== optionsKey) {
+  optsRow.dataset.options = optionsKey; optsRow.textContent = '';
+  (q.options || []).forEach((opt) => {
+    const chip = el('button', 'tchip' + (textarea.value === opt ? ' on' : ''), opt); chip.type = 'button';
+    chip.addEventListener('click', () => {
+      textarea.value = opt; questionDraft(q.id).text = opt; textarea.focus();
+      optsRow.querySelectorAll('.tchip').forEach((c) => c.classList.toggle('on', c.textContent === opt));
+    });
+    optsRow.appendChild(chip);
+  });
+  }
+  optsRow.querySelectorAll('.tchip').forEach((chip) => chip.classList.toggle('on', chip.textContent === textarea.value));
+  const submitBtn = form.querySelector('button[type=submit]'); const hintEl = form.querySelector('.hint');
+  const blocked = questionSubmissions.has(q.id) ? 'Sending your answer…' : questionBlockedReason(q, state);
+  submitBtn.disabled = !!blocked;
+  form.querySelector('.actions .btn.secondary').disabled = questionSubmissions.has(q.id);
+  hintEl.textContent = blocked || questionDraft(q.id).error || '';
+  return card;
+}
+function resolvedQuestionCard(q) {
+  const card = el('div', 'question-card resolved'); card.style.setProperty('--hue', hueOf(q.source_agent || 'orchestrator'));
+  const head = el('div','question-head');
+  head.appendChild(hueSpan(q.source_agent || 'orchestrator', 'who hue', nameFor(q.source_agent || 'orchestrator')));
+  head.appendChild(el('span', `chip${q.status === 'answered' ? ' ok' : ''}`, q.status));
+  const ts = el('span','ts',relTime(q.created_at)); ts.title = hhmmss(q.created_at); head.appendChild(ts);
+  card.appendChild(head);
+  card.appendChild(el('div','question-text',q.question));
+  if (q.context) card.appendChild(el('div','question-context',q.context));
+  const ans = el('div','question-answer', q.status === 'answered' ? 'You answered: ' + (q.answer || '') : 'Cancelled — no answer was sent.');
+  card.appendChild(ans);
+  if (q.delivery && q.delivery.status === 'started') {
+    card.appendChild(el('div','v2-meta','Continuation started · ' + q.delivery.kind));
+    if (q.delivery.id) card.appendChild(actionButton('Open continuation', () => {
+      if (q.delivery.kind === 'delegation') openReceipt(q.delivery.id);
+      else location.hash = 'turn=' + encodeURIComponent(q.delivery.id);
+    }));
+  } else if (q.status === 'answered') {
+    card.appendChild(el('div','v2-meta','Continuation ' + ((q.delivery || {}).status === 'failed' ? 'failed' : 'not confirmed') + '. Your answer is saved. Check History before continuing manually.'));
+  }
+  return card;
+}
+function renderQuestionsPanel() {
+  const openList = $('questions-open-list'), resolvedList = $('questions-resolved-list');
+  if (!openList || !lastState) return;
+  const pend = pendingQuestions(lastState), resolved = resolvedQuestions(lastState);
+  const keepIds = new Set(pend.map((q) => q.id));
+  for (const [id, card] of openQuestionCardEls) if (!keepIds.has(id)) { card.remove(); openQuestionCardEls.delete(id); questionDrafts.delete(id); }
+  openList.querySelector('.exchange-empty')?.remove();
+  if (!pend.length) openList.appendChild(el('div','exchange-empty','No open questions right now.'));
+  else pend.forEach((q, index) => {
+    const card = openQuestionCard(q, lastState), at = openList.children[index];
+    if (at !== card) openList.insertBefore(card, at || null);
+  });
+  resolvedList.textContent = '';
+  if (resolved.length) { resolvedList.appendChild(el('div','caps sub','Resolved')); resolved.slice(0,20).forEach((q) => resolvedList.appendChild(resolvedQuestionCard(q))); }
+}
+function openQuestions(focusId) {
+  const box = drawer('Questions');
+  box.appendChild(el('p','v2-meta','Answers come from you. Nothing here is answered automatically.'));
+  const openWrap = el('div'); openWrap.id = 'questions-open-list';
+  const resolvedWrap = el('div'); resolvedWrap.id = 'questions-resolved-list'; resolvedWrap.style.marginTop = '18px';
+  box.append(openWrap, resolvedWrap);
+  renderQuestionsPanel();
+  if (focusId) {
+    const card = openQuestionCardEls.get(focusId);
+    if (card) {
+      card.scrollIntoView({block:'center', behavior:reducedMotion.matches ? 'auto' : 'smooth'});
+      card.classList.remove('hl'); void card.offsetWidth; card.classList.add('hl');
+      const textarea = card.querySelector('textarea'); if (textarea) textarea.focus();
+    }
+  }
+}
+
 $('auth-form').addEventListener('submit', async (e) => {
   e.preventDefault(); accessToken = $('auth-token').value;
   try { await getJSON('/api/state'); try { sessionStorage.setItem('harness-token',accessToken); } catch (_) {} $('auth-token').value = ''; $('v2-auth').hidden = true; startConnection(); }
   catch (_) { $('auth-error').textContent = 'Token not accepted. Try again.'; }
 });
 async function openNotificationTarget() {
+  if (location.hash === '#questions') return openQuestions();
   const match = /^#(receipt|turn)=([a-zA-Z0-9_-]{1,100})$/.exec(location.hash);
   if (!match) return;
   if (match[1] === 'receipt') return openReceipt(match[2]);
   try {
     const turn = await getJSON('/api/turn/' + encodeURIComponent(match[2]));
     const box = drawer('Saved turn');
+    if (turn.session_title) box.appendChild(el('div','v2-meta','Session: ' + turn.session_title));
     box.appendChild(el('p','',turn.status));
     box.appendChild(actionButton('Export markdown', () => exportMarkdown(turn,turn.messages || [])));
     for (const m of turn.messages || []) box.append(el('div','v2-meta',m.from + ' → ' + m.to), el('pre','',m.text));
